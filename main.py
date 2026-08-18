@@ -1,99 +1,108 @@
-import csv
 import random
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.figure_factory as ff
 import statistics
+import sys
+from pathlib import Path
+
+import pandas as pd
+import plotly.figure_factory as ff
+import plotly.graph_objects as go
+
+DATA_DIR = Path(__file__).resolve().parent
+SCORE_COLUMN = "Math_score"
 
 
-df = pd.read_csv("maths.csv")
-data = df["Math_score"].tolist()
+def load_scores(filename, column=SCORE_COLUMN):
+    """Read a numeric column from a CSV file, raising a clear error on bad input."""
+    path = DATA_DIR / filename
+    try:
+        df = pd.read_csv(path)
+    except FileNotFoundError as error:
+        raise FileNotFoundError(f"Data file not found: {path}") from error
+    except pd.errors.EmptyDataError as error:
+        raise ValueError(f"Data file is empty: {path}") from error
+    except pd.errors.ParserError as error:
+        raise ValueError(f"Could not parse CSV file {path}: {error}") from error
 
-#plotting the graph
-fig = ff.create_distplot([data],["Math Scores"], show_hist= False)
-fig.show()
+    if column not in df.columns:
+        raise ValueError(
+            f"Column {column!r} missing from {path}; found columns: {list(df.columns)}"
+        )
 
-#calculating the mean and standard deviation of the population data
-mean = statistics.mean(data)
-std_deviation = statistics.stdev(data)
-print("mean of population:- ",mean)
-print("Standard deviation of population:- ",std_deviation)
+    scores = pd.to_numeric(df[column], errors="coerce")
+    invalid_count = int(scores.isna().sum())
+    if invalid_count:
+        raise ValueError(
+            f"Column {column!r} in {path} has {invalid_count} non-numeric value(s)"
+        )
+    if len(scores) < 2:
+        raise ValueError(
+            f"Column {column!r} in {path} needs at least 2 values to compute "
+            f"a standard deviation, found {len(scores)}"
+        )
+    return scores.tolist()
 
-##  code to find the mean of 100 data points 1000 times 
-#function to get the mean of the given data samples
-# pass the number of data points you want  as counter
-def random_set_of_mean(counter):
-    dataset = []
-    for i in range(0, counter):
-        random_index= random.randint(0,len(data)-1)
-        value = data[random_index]
-        dataset.append(value)
-    mean = statistics.mean(dataset)
-    return mean
 
-# Pass the number of time you want the mean of the data points as a parameter in range function in for loop
-mean_list = []
-for i in range(0,1000):
-    set_of_means= random_set_of_mean(100)
-    mean_list.append(set_of_means)
+def random_set_of_mean(data, counter):
+    """Mean of `counter` values sampled with replacement from `data`."""
+    if counter < 1:
+        raise ValueError(f"counter must be at least 1, got {counter}")
+    if not data:
+        raise ValueError("cannot sample from an empty dataset")
+    dataset = [data[random.randint(0, len(data) - 1)] for _ in range(counter)]
+    return statistics.mean(dataset)
 
-## calculating mean and standard_deviation of the sampling distribution.
-std_deviation = statistics.stdev(mean_list)
-mean = statistics.mean(mean_list)
-print("mean of sampling distribution:- ",mean)
-print("Standard deviation of sampling distribution:- ", std_deviation)
 
-#plotting the mean of the sampling
-fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
-fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.20], mode="lines", name="MEAN"))
-fig.show()
+def plot_sample(mean_list, population_mean, sample_mean, sd_end, sample_label):
+    fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
+    fig.add_trace(go.Scatter(x=[population_mean, population_mean], y=[0, 0.17], mode="lines", name="MEAN"))
+    fig.add_trace(go.Scatter(x=[sample_mean, sample_mean], y=[0, 0.17], mode="lines", name=f"MEAN OF {sample_label}"))
+    fig.add_trace(go.Scatter(x=[sd_end, sd_end], y=[0, 0.17], mode="lines", name=f"{sample_label} STANDARD DEVIATION END"))
+    fig.show()
 
-#finding the standard deviation starting and ending values
-first_sd_start,first_sd_end=mean-std_deviation,mean+std_deviation
-second_sd_start,second_sd_end=mean-2*std_deviation,mean+2*std_deviation
-third_sd_start,third_sd_end=mean-3*std_deviation,mean+3*std_deviation
-#print('std1',first_sd_start,first_sd_end)
-#print('std2',second_sd_start,second_sd_end)
-#print('std3',third_sd_start,third_sd_end)
 
-# plotting the graph with traces
-#fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
-#fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.17], mode="lines", name="MEAN"))
-#fig.add_trace(go.Scatter(x=[first_sd_start, first_sd_start], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 1 START"))
-#fig.add_trace(go.Scatter(x=[first_sd_end, first_sd_end], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 1 END"))
-#fig.add_trace(go.Scatter(x=[second_sd_start, second_sd_start], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 2 START"))
-#fig.add_trace(go.Scatter(x=[second_sd_end, second_sd_end], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 2 END"))
-#fig.add_trace(go.Scatter(x=[third_sd_start,third_sd_start], y=[0,0.17], mode="lines", name="STANDARD DEVIATION 3 START"))
-#fig.add_trace(go.Scatter(x=[third_sd_end,third_sd_end], y=[0,0.17], mode="lines", name="STANDARD DEVIATION 3 END"))
-#fig.show()
+def main():
+    population = load_scores("maths.csv")
 
- # finding the mean of the first data(STUDENTS WHO GOT TABLET WITH LEARNING MATERIAL) and plotting it on the plot.
-df = pd.read_csv("data1.csv")
-data = df["Math_score"].tolist()
-mean_of_sample1 = statistics.mean(data)
-print("Mean of sample1:- ",mean_of_sample1)
-fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
-fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.17], mode="lines", name="MEAN"))
-fig.add_trace(go.Scatter(x=[mean_of_sample1, mean_of_sample1], y=[0, 0.17], mode="lines", name="MEAN OF SAMPLE"))
-fig.add_trace(go.Scatter(x=[first_sd_end, first_sd_end], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 1 END"))
-fig.show()
+    #plotting the graph
+    fig = ff.create_distplot([population], ["Math Scores"], show_hist=False)
+    fig.show()
 
-df = pd.read_csv("data2.csv")
-data = df["Math_score"].tolist()
-mean_of_sample2 = statistics.mean(data)
-print("Mean of sample2:- ",mean_of_sample2)
-fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
-fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.17], mode="lines", name="MEAN"))
-fig.add_trace(go.Scatter(x=[mean_of_sample2, mean_of_sample2], y=[0, 0.17], mode="lines", name="MEAN OF SAMPLE 2"))
-fig.add_trace(go.Scatter(x=[second_sd_end, second_sd_end], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 2 END"))
-fig.show()
+    #calculating the mean and standard deviation of the population data
+    print("mean of population:- ", statistics.mean(population))
+    print("Standard deviation of population:- ", statistics.stdev(population))
 
-df = pd.read_csv("data3.csv")
-data = df["Math_score"].tolist()
-mean_of_sample3 = statistics.mean(data)
-print("Mean of sample3:- ",mean_of_sample3)
-fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
-fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.17], mode="lines", name="MEAN"))
-fig.add_trace(go.Scatter(x=[mean_of_sample3, mean_of_sample3], y=[0, 0.17], mode="lines", name="MEAN OF SAMPLE 3"))
-fig.add_trace(go.Scatter(x=[third_sd_end, third_sd_end], y=[0, 0.17], mode="lines", name="STANDARD DEVIATION 3 END"))
-fig.show()
+    # mean of 100 data points, 1000 times
+    mean_list = [random_set_of_mean(population, 100) for _ in range(1000)]
+
+    ## calculating mean and standard_deviation of the sampling distribution.
+    mean = statistics.mean(mean_list)
+    std_deviation = statistics.stdev(mean_list)
+    print("mean of sampling distribution:- ", mean)
+    print("Standard deviation of sampling distribution:- ", std_deviation)
+
+    #plotting the mean of the sampling
+    fig = ff.create_distplot([mean_list], ["student marks"], show_hist=False)
+    fig.add_trace(go.Scatter(x=[mean, mean], y=[0, 0.20], mode="lines", name="MEAN"))
+    fig.show()
+
+    #finding the standard deviation ending values
+    first_sd_end = mean + std_deviation
+    second_sd_end = mean + 2 * std_deviation
+    third_sd_end = mean + 3 * std_deviation
+
+    for index, (filename, sd_end) in enumerate(
+        (("data1.csv", first_sd_end), ("data2.csv", second_sd_end), ("data3.csv", third_sd_end)),
+        start=1,
+    ):
+        sample = load_scores(filename)
+        sample_mean = statistics.mean(sample)
+        print(f"Mean of sample{index}:- ", sample_mean)
+        plot_sample(mean_list, mean, sample_mean, sd_end, f"SAMPLE {index}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, statistics.StatisticsError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        sys.exit(1)
