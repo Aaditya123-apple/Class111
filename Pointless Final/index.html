@@ -1,0 +1,2120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Phone Number (Please Hold)</title>
+<meta name="description" content="The world's least efficient phone number entry form.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='36' cy='42' rx='22' ry='14' fill='%23ffd84a' stroke='%231f2433' stroke-width='3'/%3E%3Ccircle cx='24' cy='24' r='12' fill='%23ffd84a' stroke='%231f2433' stroke-width='3'/%3E%3Cpath d='M8 24 L1 28 L10 30 Z' fill='%23ff8a1f' stroke='%231f2433' stroke-width='2'/%3E%3Ccircle cx='21' cy='21' r='2.6' fill='%231f2433'/%3E%3C/svg%3E">
+<style>
+/* =====================================================================
+   1. DESIGN TOKENS
+   The page starts "corporate clean" (body.c0) and gets more chaotic as
+   cumulative classes c1..c4 are added to <body>.
+   ===================================================================== */
+:root{
+  --font: ui-rounded, "SF Pro Rounded", "Arial Rounded MT Bold", "Nunito", "Varela Round", "Quicksand", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --fun-font: "Comic Sans MS", "Comic Neue", "Chalkboard SE", "Comic Sans", var(--font);
+  --ink:#1f2433; --muted:#6b7385; --bg:#eef1f6; --card:#ffffff; --line:#dde2ea; --accent:#3d6ef5;
+  --bw:1px; --card-shadow:0 8px 24px rgba(25,35,70,.08); --radius:20px; --status-h:36px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;overflow-x:hidden}
+body{
+  font-family:var(--font); color:var(--ink); background:var(--bg);
+  font-size:clamp(15px, .45vw + 11px, 20px); line-height:1.35; padding-top:var(--status-h);
+  min-height:100vh; -webkit-tap-highlight-color:transparent;
+}
+button{font-family:inherit}
+[hidden]{display:none !important}
+
+/* ---------- Background layers (cross-fade between chaos levels) ---------- */
+#bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bgl{position:absolute;inset:0;opacity:0;transition:opacity 1.2s ease}
+.bg1{background:linear-gradient(135deg,#fff1fb,#eafcff 50%,#fffbe6)}
+.bg2{background:linear-gradient(120deg,#ffe066,#ff8fd0,#7ee8f2,#b4ff8a,#ffe066);background-size:400% 400%;animation:bgPan 14s linear infinite}
+.bg3{background:
+      radial-gradient(circle at 25% 25%,rgba(255,255,255,.55) 0 7px,transparent 8px) 0 0/44px 44px,
+      radial-gradient(circle at 75% 75%,rgba(255,255,255,.35) 0 5px,transparent 6px) 0 0/44px 44px,
+      linear-gradient(120deg,#ff6fb5,#ffd23f,#5ce1e6,#9b7bff,#ff6fb5);background-size:44px 44px,44px 44px,400% 400%;animation:bgPan 7s linear infinite}
+.bg4{inset:-60vmax;background:repeating-conic-gradient(from 0deg,rgba(255,77,141,.35) 0 9deg,rgba(255,210,63,.35) 9deg 18deg);animation:spin 30s linear infinite}
+body.c1 .bg1,body.c2 .bg2,body.c3 .bg3,body.c4 .bg4{opacity:1}
+@keyframes bgPan{0%{background-position:0 0,0 0,0% 50%}100%{background-position:44px 44px,-44px 44px,400% 50%}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* =====================================================================
+   2. STATUS BAR (always on top; holds the REAL mute button)
+   ===================================================================== */
+#statusbar{
+  position:fixed;top:0;left:0;right:0;height:var(--status-h);z-index:1100;
+  display:flex;align-items:center;gap:clamp(8px,1.4vw,22px);padding:0 12px;
+  background:#1f2433;color:#e7ebf3;font:600 14px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  white-space:nowrap;overflow:hidden;
+}
+#statusbar b{color:#fff}
+.sb-item{display:flex;align-items:center;gap:6px}
+.sb-spacer{flex:1}
+.meter{display:inline-block;width:64px;height:9px;border-radius:9px;background:#3a4157;overflow:hidden}
+.meter i{display:block;height:100%;width:100%;background:#37d67a;transition:background .4s}
+#sanityVal.warn{color:#ffd23f}#sanityVal.bad{color:#ff6b6b}
+#sanityVal.neg{color:#ff4d4d;animation:blink .6s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+/* Deliberately boring, honest buttons. */
+.plain{font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#eceff4;color:#1f2433;border:1px solid #9aa3b5;border-radius:4px;padding:5px 9px;cursor:pointer}
+.plain:hover{background:#fff}
+.plain.on{background:#ff6b6b;color:#fff;border-color:#c44}
+@media (max-width:760px){.hide-md{display:none}}
+@media (max-width:560px){.hide-sm{display:none}#statusbar{gap:8px;padding:0 8px;font-size:12.5px}.meter{width:38px}}
+
+/* =====================================================================
+   3. LAYOUT
+   ===================================================================== */
+#app{max-width:1520px;margin:0 auto;padding:0 clamp(10px,1.4vw,22px) 14px}
+.hero{display:flex;flex-direction:column;gap:6px;padding:10px 0 10px}
+.brand{display:flex;align-items:center;gap:14px;position:relative}
+.logo-duck{width:clamp(40px,3.6vw,56px);height:clamp(40px,3.6vw,56px);border:0;background:none;padding:0;cursor:pointer;flex:none;transition:transform .2s cubic-bezier(.3,1.8,.5,1)}
+.logo-duck:hover{transform:rotate(-12deg) scale(1.1)}
+.logo-duck:active{transform:scale(1.2,.8)}
+.logo-duck svg{width:100%;height:100%}
+h1{margin:0;font-size:clamp(24px,2.5vw,42px);line-height:1.05;font-weight:800;letter-spacing:-.5px;transition:color .6s}
+h1 .ph{color:var(--muted);font-weight:700;transition:color .6s}
+.tagline{margin:2px 0 0;color:var(--muted);font-size:.8em;font-weight:600}
+.badge-new{position:absolute;right:4px;top:-2px;font:900 15px/1 var(--fun-font);color:#fff;background:#ff2e6e;border:3px solid var(--ink);padding:10px 8px;border-radius:50%;rotate:14deg;opacity:0;scale:.2;transition:opacity .4s,scale .5s cubic-bezier(.3,1.8,.5,1);pointer-events:none}
+body.c2 .badge-new{opacity:1;scale:1;animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.15)}}
+
+.ticker{height:30px;overflow:hidden;border-radius:10px;background:#e3e8f0;border:var(--bw) solid var(--line);position:relative;transition:background .6s}
+.ticker-inner{display:flex;width:max-content;animation:tick 26s linear infinite;height:100%;align-items:center}
+.ticker-inner span{padding-right:80px;font-weight:700;font-size:15px;color:var(--muted);white-space:nowrap}
+@keyframes tick{to{transform:translateX(-50%)}}
+body.c2 .ticker{background:#1f2433}
+body.c2 .ticker-inner span{color:#ffe066}
+body.c3 .ticker-inner{animation-duration:12s}
+
+.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:clamp(12px,1.3vw,20px);align-items:start}
+.side{display:flex;flex-direction:column;gap:clamp(12px,1.3vw,20px)}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* =====================================================================
+   4. CARDS (calm at first, then tilted, outlined, wobbly)
+   ===================================================================== */
+.card{
+  background:var(--card);border:var(--bw) solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--card-shadow);padding:clamp(12px,1.3vw,20px);position:relative;
+  transition:rotate .9s cubic-bezier(.3,1.7,.5,1),border-color .6s,box-shadow .6s;
+}
+.card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.card-head h2{margin:0;font-size:clamp(17px,1.35vw,24px);font-weight:800}
+.step{font:800 .72em/1 var(--font);text-transform:uppercase;letter-spacing:.08em;color:#fff;background:var(--accent);padding:6px 9px;border-radius:99px;transition:background .6s}
+.hint{color:var(--muted);margin:8px 0;font-weight:600;font-size:.9em;min-height:1.35em}
+.fineprint{color:var(--muted);font-size:.78em;font-weight:600}
+body.c1{--bw:3px;--line:var(--ink);--card-shadow:6px 6px 0 var(--ink)}
+body.c1 .step{background:#ff2e6e}
+body.c2 h1{background:linear-gradient(90deg,#ff2e6e,#ff9f1c,#3bceac,#3a86ff,#8338ec);-webkit-background-clip:text;background-clip:text;color:transparent}
+body.c2 h1 .ph{color:var(--ink)}
+body.c2 .act1{rotate:-.6deg}
+body.c2 .act2{rotate:1.4deg}
+body.c2 .act3{rotate:-1.6deg}
+body.c2 .holdcard{rotate:1deg}
+body.c3 h1{font-family:var(--fun-font);animation:wobbleTitle 2.4s ease-in-out infinite}
+body.c3 .card{animation:wobble 3.4s ease-in-out infinite}
+body.c3 .act2{animation-delay:-.8s}body.c3 .act3{animation-delay:-1.6s}body.c3 .holdcard{animation-delay:-2.2s}
+body.c4 .card{animation-duration:1.9s}
+body.c4 #statusbar{background:#b3123f}
+@keyframes wobble{0%,100%{transform:rotate(0)}50%{transform:rotate(1.1deg) translateY(-3px)}}
+@keyframes wobbleTitle{0%,100%{transform:rotate(-1.5deg)}50%{transform:rotate(1.5deg) scale(1.02)}}
+
+/* =====================================================================
+   5. ACT 1: BOARD, SLOTS, KEYPAD
+   ===================================================================== */
+.board-wrap{position:relative;border-radius:14px;overflow:hidden;border:var(--bw) solid var(--line);background:#f5f7fb}
+#board{display:block;width:100%;height:clamp(220px,calc(100vh - 470px),560px);touch-action:manipulation}
+.slots{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:8px}
+.slot{
+  height:clamp(42px,4.2vw,64px);border:2px dashed #b9c1d0;border-radius:12px;display:grid;place-items:center;
+  font:900 clamp(22px,2.3vw,38px)/1 var(--font);background:#f7f9fc;color:var(--ink);position:relative;
+  transition:border-color .3s,background .3s;
+}
+.slot::after{content:attr(data-n);position:absolute;bottom:2px;right:5px;font-size:10px;font-weight:700;color:#aab2c2}
+.slot.filled{border-style:solid;border-color:var(--ink);background:#fff;animation:slotPop .5s cubic-bezier(.3,1.8,.5,1)}
+.slot.drop{animation:slotDrop .5s ease-in}
+@keyframes slotPop{0%{transform:scale(.5) rotate(-12deg)}100%{transform:none}}
+@keyframes slotDrop{50%{transform:translateY(8px) rotate(8deg)}}
+.loading-line{height:1.6em;margin:8px 0 10px;font-weight:700;color:var(--muted);font-size:.92em;display:flex;align-items:center;gap:8px;overflow:hidden;white-space:nowrap}
+.loading-line::before{content:"";width:14px;height:14px;flex:none;border-radius:50%;border:3px solid #c9d0de;border-top-color:var(--accent);animation:spin .8s linear infinite}
+.loading-line span{transition:opacity .25s,transform .25s;display:inline-block}
+.loading-line span.out{opacity:0;transform:translateY(-8px)}
+
+.keypad{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:clamp(6px,.7vw,12px);padding-bottom:8px}
+@media (max-width:640px){.keypad{grid-template-columns:repeat(5,minmax(0,1fr))}}
+.key{
+  --c:#4a74f0;--cd:#2a4bb8;
+  font:900 clamp(24px,2.3vw,40px)/1 var(--font);color:#fff;height:clamp(52px,5vw,76px);
+  border:3px solid #23315f;border-radius:16px;cursor:pointer;position:relative;
+  background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 48%),var(--c);
+  box-shadow:0 7px 0 var(--cd),0 10px 16px rgba(0,0,0,.18);text-shadow:0 2px 0 rgba(0,0,0,.3);
+  transition:transform .18s cubic-bezier(.3,1.8,.5,1),box-shadow .1s,background-color .5s;
+  touch-action:manipulation;user-select:none;-webkit-user-select:none;
+}
+body.c1 .key{--c:var(--kc);--cd:var(--kcd);border-color:var(--ink)}
+.key:hover{transform:translateY(-4px) scale(1.05)}
+.key:active{transform:translateY(6px) scale(1.08,.86);box-shadow:0 1px 0 var(--cd),0 2px 4px rgba(0,0,0,.2)}
+.key.squish{animation:squish .38s cubic-bezier(.3,1.6,.5,1)}
+@keyframes squish{0%{transform:translateY(6px) scale(1.15,.8)}50%{transform:translateY(-6px) scale(.92,1.1)}100%{transform:none}}
+
+.form-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+.btn{
+  font:800 clamp(15px,1.05vw,18px)/1 var(--font);padding:11px 18px;border-radius:14px;cursor:pointer;
+  border:3px solid var(--ink);background:#fff;color:var(--ink);box-shadow:0 5px 0 var(--ink);
+  transition:transform .18s cubic-bezier(.3,1.8,.5,1),box-shadow .1s,background .3s;
+}
+.btn:hover{transform:translateY(-3px) rotate(-1deg)}
+.btn:active{transform:translateY(4px) scale(1.05,.9);box-shadow:0 1px 0 var(--ink)}
+.btn-pink{background:#ff4f8b;color:#fff}.btn-green{background:#2bd67b;color:#0f2a1a}
+.btn-ghost{background:#eef1f6;color:var(--muted)}
+.btn-small{padding:8px 13px;font-size:15px}
+.btn-big{font-size:clamp(17px,1.4vw,22px);padding:14px 22px}
+
+/* Call panel overlays the board when all 10 slots are filled */
+.call-panel{position:absolute;inset:0;display:grid;place-items:center;background:rgba(31,36,51,.82);color:#fff;text-align:center;padding:16px;animation:fadeIn .3s}
+.call-inner{max-width:92%}
+.call-title{font:900 clamp(28px,3.4vw,58px)/1.05 var(--fun-font);color:#ffe066;text-shadow:3px 3px 0 #ff2e6e}
+.call-title.stamp{animation:stamp .5s cubic-bezier(.3,1.8,.5,1)}
+.call-number{font:900 clamp(22px,2.6vw,44px)/1.2 var(--font);margin-top:10px;letter-spacing:1px;word-break:break-all;min-height:1.2em}
+.call-sub{font-weight:700;font-size:clamp(16px,1.3vw,22px);margin-top:10px;min-height:1.3em;color:#cfe3ff}
+.call-actions{display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.ringing{display:inline-block;animation:ring .15s linear infinite}
+@keyframes ring{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}}
+@keyframes stamp{0%{transform:scale(2.4) rotate(-10deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes fadeIn{from{opacity:0}}
+
+/* =====================================================================
+   6. ACT 2: VOLUME SLIDER
+   ===================================================================== */
+.vol-row{display:flex;align-items:center;gap:12px}
+.vol-label{font-weight:800}
+.vol-pct{font:900 1.05em/1 var(--font);min-width:3.6em;text-align:right;font-variant-numeric:tabular-nums}
+.track{position:relative;flex:1;height:48px;touch-action:none;cursor:pointer;min-width:120px}
+.track::before{content:"";position:absolute;left:0;right:0;top:50%;height:12px;transform:translateY(-50%);border-radius:99px;background:#dfe4ec;box-shadow:inset 0 2px 3px rgba(0,0,0,.18)}
+.fill{position:absolute;left:0;top:50%;height:12px;transform:translateY(-50%);border-radius:99px;background:var(--accent);width:50%}
+.knob{
+  position:absolute;top:50%;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;cursor:grab;
+  background:radial-gradient(circle at 34% 30%,#fff 0 9%,#ff86a5 11%,#ff3b6b 58%,#c8174a);
+  border:3px solid var(--ink);box-shadow:0 4px 10px rgba(0,0,0,.25);transition:scale .2s cubic-bezier(.3,1.8,.5,1);
+}
+.knob:hover{scale:1.12}.knob:active{cursor:grabbing;scale:1.2 .9}
+.knob:focus-visible{outline:4px solid #ffd23f}
+.knob.tremble{animation:tremble .07s linear infinite}
+.knob.gone{visibility:hidden}
+@keyframes tremble{0%{transform:translate(1px,-1px)}50%{transform:translate(-2px,1px)}100%{transform:translate(1px,1px)}}
+.sticky{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-4deg) scale(.3);opacity:0;pointer-events:none;
+  background:#fff27a;color:#3b3300;font:800 14px/1.15 var(--fun-font);padding:7px 11px;border-radius:3px;
+  box-shadow:3px 4px 0 rgba(0,0,0,.25);white-space:nowrap;text-align:center;transition:transform .5s cubic-bezier(.3,1.8,.5,1),opacity .2s;
+}
+.sticky.show{opacity:1;transform:translate(-50%,-50%) rotate(-4deg);pointer-events:auto}
+.chip{display:inline-block;padding:3px 10px;border-radius:99px;background:#e3e8f0;color:var(--muted);font-weight:800}
+.chip.hot{background:#ff2e6e;color:#fff;animation:pulse .8s infinite}
+.hold-num{font:800 clamp(17px,1.4vw,24px)/1.2 var(--font)}
+.hold-num b{font-variant-numeric:tabular-nums}
+
+footer{text-align:center;padding:18px 8px 26px;color:var(--muted);font-weight:700;font-size:.85em}
+footer .big{font-size:1.15em;color:var(--ink)}
+footer .retro{margin:10px auto 0;display:inline-flex;gap:14px;flex-wrap:wrap;justify-content:center;opacity:0;transition:opacity .6s}
+body.c2 footer .retro{opacity:1}
+.uc{background:repeating-linear-gradient(45deg,#ffd23f 0 12px,#1f2433 12px 24px);color:#fff;padding:4px 10px;text-shadow:0 0 3px #000;border-radius:4px}
+.counter{font-family:"Courier New",monospace;background:#000;color:#3f3;padding:3px 8px;border-radius:3px}
+.keys{display:inline-block;margin-top:8px;font-size:.85em}
+kbd{font:800 .9em/1 var(--font);border:2px solid #b9c1d0;border-bottom-width:4px;border-radius:6px;padding:2px 6px;background:#fff;color:var(--ink)}
+
+/* =====================================================================
+   7. ACT 3: MODAL + CAMERA
+   ===================================================================== */
+.modal{position:fixed;inset:0;z-index:800;display:grid;place-items:center;background:rgba(20,16,40,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);padding:calc(var(--status-h) + 8px) 10px 10px;overflow:auto;opacity:0;transition:opacity .3s}
+.modal.show{opacity:1}
+.modal-card{background:#fff;border:4px solid var(--ink);border-radius:24px;box-shadow:10px 10px 0 var(--ink);padding:clamp(14px,1.6vw,24px);max-width:min(96vw,820px);width:100%;text-align:center;animation:popIn .5s cubic-bezier(.3,1.6,.5,1)}
+@keyframes popIn{from{transform:scale(.6) rotate(-6deg);opacity:0}}
+.perm h2{font:900 clamp(24px,2.6vw,40px)/1.1 var(--font);margin:8px 0}
+.perm p{font-weight:700;color:var(--muted)}
+.perm-icon svg{width:clamp(80px,9vw,130px);height:auto;animation:wobbleTitle 1.4s ease-in-out infinite}
+.perm-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:16px 0 8px}
+.countdown{font-weight:800;color:#ff2e6e !important}
+.cam-head{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;font-size:1.05em}
+.rec{color:#ff2e2e;font-weight:900;animation:blink 1s steps(2) infinite}
+.scan-text{font-weight:800;color:var(--muted);min-width:14em}
+.cam-box{
+  position:relative;margin:0 auto;width:min(92vw,740px,calc((100vh - 250px) * 1.3333));aspect-ratio:4/3;
+  border:5px solid var(--ink);border-radius:18px;overflow:hidden;background:#222;box-shadow:0 0 0 6px #ffe066,0 0 0 10px var(--ink);
+}
+#camCanvas{display:block;width:100%;height:100%}
+.cam-msg{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#fff27a;border:3px solid var(--ink);border-radius:12px;padding:6px 12px;font-size:clamp(14px,1.2vw,18px);display:flex;flex-direction:column;gap:2px;width:max-content;max-width:94%;rotate:-1.5deg;animation:popIn .4s cubic-bezier(.3,1.6,.5,1)}
+.cam-msg span{font-weight:700;font-size:.85em;color:#5a5000}
+.captions{position:absolute;left:0;right:0;top:4%;display:flex;justify-content:center;pointer-events:none}
+.caption{font:900 clamp(18px,2.2vw,34px)/1.1 var(--fun-font);color:#fff;padding:6px 14px;border-radius:12px;border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);max-width:90%;animation:capIn .55s cubic-bezier(.3,1.8,.5,1)}
+@keyframes capIn{0%{transform:scale(.2) rotate(12deg);opacity:0}100%{opacity:1}}
+.polaroid{position:absolute;right:10px;top:10px;width:28%;border:6px solid #fff;border-bottom-width:20px;box-shadow:0 6px 14px rgba(0,0,0,.4);rotate:6deg;animation:polaroid 3.2s ease forwards}
+@keyframes polaroid{0%{transform:translateY(-140%) rotate(-30deg)}15%{transform:none}85%{opacity:1}100%{opacity:0;transform:translateY(20px)}}
+.cam-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.privacy{font-weight:800;color:var(--muted);margin:12px 0 0;font-size:.9em}
+#camVideo{position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none}
+
+/* =====================================================================
+   8. OVERLAYS: FX canvas, duck pops, tooltip, toast, flash, return ball
+   ===================================================================== */
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:900}
+.return-ball{position:fixed;z-index:950;font:700 13px/1 var(--font);color:#8a93a6;background:rgba(255,255,255,.75);border:1px dashed #aab2c2;border-radius:8px;padding:7px 10px;cursor:pointer;transition:left .35s cubic-bezier(.3,1.6,.5,1),top .35s cubic-bezier(.3,1.6,.5,1),transform .2s}
+.return-ball:hover{transform:scale(1.08)}
+#duckLayer{position:fixed;inset:0;pointer-events:none;z-index:960}
+.duck-pop{position:fixed;display:flex;flex-direction:column;align-items:center;animation:duckUp 1s cubic-bezier(.2,1.4,.4,1) forwards}
+.duck-pop svg{width:48px;height:48px}
+.duck-pop .bubble{font:800 15px/1 var(--font);background:#fff;color:var(--ink);border:2px solid var(--ink);border-radius:12px;padding:6px 9px;white-space:nowrap;margin-bottom:2px;box-shadow:2px 2px 0 var(--ink)}
+@keyframes duckUp{
+  0%{transform:translate(-50%,0) scale(.2) rotate(-25deg);opacity:0}
+  22%{transform:translate(-50%,-46px) scale(1.15) rotate(8deg);opacity:1}
+  70%{transform:translate(-50%,-64px) scale(1) rotate(-4deg);opacity:1}
+  100%{transform:translate(-50%,-92px) scale(.85);opacity:0}}
+#tooltip{position:fixed;left:0;top:0;z-index:1200;pointer-events:none;max-width:280px;background:#1f2433;color:#fff;font:700 14px/1.3 var(--font);padding:7px 11px;border-radius:10px;opacity:0;transform:translateY(5px) scale(.94);transition:opacity .12s,transform .2s cubic-bezier(.3,1.8,.5,1)}
+#tooltip.show{opacity:1;transform:none}
+body.c2 #tooltip{background:#fff27a;color:var(--ink);border:2px solid var(--ink);rotate:-2deg}
+#toast{position:fixed;left:50%;top:calc(var(--status-h) + 14px);z-index:1150;transform:translate(-50%,-30px);opacity:0;background:#1f2433;color:#fff;font:800 clamp(15px,1.2vw,20px)/1.2 var(--font);padding:10px 16px;border-radius:14px;pointer-events:none;transition:opacity .2s,transform .35s cubic-bezier(.3,1.8,.5,1);max-width:92vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:1300}
+#flash.go{animation:flash .45s ease-out}
+@keyframes flash{0%{opacity:.95}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.bg2,.bg3,.bg4,.ticker-inner{animation-duration:60s}}
+</style>
+</head>
+<body class="c0">
+<!-- ===================================================================
+     MARKUP
+     =================================================================== -->
+<div id="bg" aria-hidden="true"><div class="bgl bg1"></div><div class="bgl bg2"></div><div class="bgl bg3"></div><div class="bgl bg4"></div></div>
+
+<div id="statusbar">
+  <span class="sb-item" data-tip="Your remaining sanity. Non-refundable.">Sanity: <b id="sanityVal">100%</b><span class="meter"><i id="sanityBar"></i></span></span>
+  <span class="sb-item hide-sm" data-tip="Signal strength is measured in vibes.">Signal: <b>&#9602;&#9604;&#9606;&#9608;</b></span>
+  <span class="sb-item hide-sm" data-tip="Number of ducks currently supervising you.">Ducks: <b id="sbDucks">3 online</b></span>
+  <span class="sb-item hide-md" data-tip="Gravity status, as reported by gravity.">Gravity: <b id="sbGravity">nominal</b></span>
+  <span class="sb-spacer"></span>
+  <button class="plain" id="masterVolBtn" type="button" data-tip="The REAL master volume. Boring. Honest. Works.">Master: 100%</button>
+  <button class="plain" id="muteBtn" type="button" data-tip="The only honest button on this page. Always works. (M)">Mute</button>
+</div>
+
+<div id="app">
+  <header class="hero">
+    <div class="brand">
+      <button class="logo-duck" id="logoDuck" type="button" aria-label="Corporate duck" data-tip="Corporate mascot. Do not feed. Do click."></button>
+      <div>
+        <h1 id="title">Phone Number <span class="ph">(Please Hold)</span></h1>
+        <p class="tagline" data-tip="All claims verified by the ducks.">Secure Number Entry Portal&trade; &middot; Est. 2003 &middot; Trusted by 3 ducks</p>
+      </div>
+      <span class="badge-new" aria-hidden="true">NEW!</span>
+    </div>
+    <div class="ticker" data-tip="Important announcements. Please hold."><div class="ticker-inner" id="ticker"></div></div>
+  </header>
+
+  <main class="grid">
+    <!-- ACT 1 -->
+    <section class="card act1" aria-labelledby="a1h">
+      <div class="card-head"><span class="step" data-tip="This is step one. There are several.">Step 1</span><h2 id="a1h">Enter your phone number to continue</h2></div>
+      <div class="board-wrap">
+        <canvas id="board" data-tip="The Digit Distribution Engine&trade;. Certified by gravity."></canvas>
+        <div class="call-panel" id="callPanel" hidden>
+          <div class="call-inner">
+            <div class="call-title" id="callTitle">Number accepted!</div>
+            <div class="call-number" id="callNumber"></div>
+            <div class="call-sub" id="callSub"></div>
+            <div class="call-actions" id="callActions" hidden>
+              <button class="btn btn-pink" id="redialBtn" type="button" data-tip="Releases all digits. They will fall. That is the point.">Hang up &amp; redial</button>
+              <button class="btn" id="holdBtn" type="button" data-tip="Experience premium hold music.">Keep holding</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="slots" id="slots" aria-label="Phone number field, 10 digits"></div>
+      <div class="loading-line" aria-live="polite"><span id="loadingText">Consulting the ducks...</span></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="form-row">
+        <button class="btn" id="clearBtn" type="button" data-tip="Releases the digits back into the wild.">Clear</button>
+        <button class="btn btn-ghost" id="continueBtn" type="button" data-tip="Continues. Eventually. Please hold.">Continue</button>
+        <span class="fineprint" data-tip="It is a feature.">Digits are inserted in a secure random order&trade;.</span>
+      </div>
+    </section>
+
+    <aside class="side">
+      <!-- ACT 2 -->
+      <section class="card act2" aria-labelledby="a2h">
+        <div class="card-head"><span class="step" data-tip="Step two. Mostly harmless.">Step 2</span><h2 id="a2h">Set your preferred volume</h2></div>
+        <div class="vol-row">
+          <span class="vol-label" data-tip="Controls the duck volume. Really. Try it.">Volume</span>
+          <div class="track" id="track" data-tip="Drag to set volume. Do not max out. Seriously.">
+            <div class="fill" id="fill"></div>
+            <div class="knob" id="knob" role="slider" tabindex="0" aria-label="Volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+            <div class="sticky" id="sticky" data-tip="Facilities has been notified. Facilities is a duck.">Volume knob is out.<br>Please try again later.</div>
+          </div>
+          <span class="vol-pct" id="volPct" data-tip="Current volume, in percent-ish.">50%</span>
+        </div>
+        <p class="hint" id="volHint">Drag me. Responsibly.</p>
+        <button class="btn btn-small" id="testQuackBtn" type="button" data-tip="Plays one (1) professionally calibrated quack.">Test quack</button>
+      </section>
+
+      <!-- ACT 3 teaser -->
+      <section class="card act3" aria-labelledby="a3h">
+        <div class="card-head"><span class="step" data-tip="Step three. Involves your face.">Step 3</span><h2 id="a3h">Identity verification</h2></div>
+        <p style="margin:0">Status: <b id="a3Status" class="chip" data-tip="Verification status. Currently judging you.">Locked</b></p>
+        <p class="hint" id="a3Hint">Unlocks automatically after volume setup. Please hold.</p>
+        <button class="btn btn-small" id="a3Btn" type="button" hidden data-tip="Re-open the Nostril Filter&trade;. (N)">Verify nostrils again</button>
+      </section>
+
+      <section class="card holdcard">
+        <div class="hold-num" data-tip="Your position in the queue. It only goes one way.">You are caller <b id="callerNum">#7</b> in line</div>
+        <p class="hint" style="margin-bottom:0">Your call is important to the ducks.</p>
+      </section>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="big" data-tip="Legally reviewed by a duck.">No ducks were harmed. Several digits were.</div>
+    <div class="retro" aria-hidden="true">
+      <span class="uc">UNDER CONSTRUCTION</span>
+      <span>Best viewed in Netscape Navigator 4 at 800&times;600</span>
+      <span>Visitors: <span class="counter" id="visitors">0000137</span></span>
+    </div>
+    <div class="keys" data-tip="Presenter shortcuts. Shh.">
+      <kbd>R</kbd> reset &middot; <kbd>V</kbd> volume &middot; <kbd>N</kbd> nostrils &middot; <kbd>M</kbd> mute &middot; <kbd>0</kbd>-<kbd>9</kbd> digits
+    </div>
+  </footer>
+</div>
+
+<!-- ACT 3 MODAL -->
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="permTitle">
+    <div class="perm" id="permStep">
+      <div class="perm-icon" id="permIcon"></div>
+      <h2 id="permTitle">For your safety, we need to see your face.</h2>
+      <p>Federal Nostril Regulation &sect;4.2(b) requires a quick look. It is for your own good.</p>
+      <div class="perm-actions">
+        <button class="btn btn-big btn-green" id="allowBtn" type="button" data-tip="Grants camera access. Stays on your device.">Allow camera</button>
+        <button class="btn btn-big" id="allow2Btn" type="button" data-tip="Same button. Different feelings.">Allow camera, but sadly</button>
+      </div>
+      <p class="countdown" id="permCountdown">&nbsp;</p>
+    </div>
+    <div class="cam" id="camStep" hidden>
+      <div class="cam-head"><span class="rec" data-tip="It is live. Your nose is on air.">&#9679; LIVE</span> <b>Nostril Filter&trade;</b> <span class="scan-text" id="scanText">Locating nostrils...</span></div>
+      <div class="cam-box" id="camBox">
+        <canvas id="camCanvas" width="640" height="480" data-tip="Your face, enhanced. You're welcome."></canvas>
+        <div class="cam-msg" id="camMsg" hidden><b>No face found. Using a stock face.</b><span id="camMsgSub"></span></div>
+        <div class="captions" id="captions"></div>
+        <img class="polaroid" id="polaroid" alt="Saved photo preview" hidden>
+      </div>
+      <div class="cam-actions">
+        <button class="btn btn-green" id="snapBtn" type="button" data-tip="Saves a PNG to your device. We never see it.">Snap a photo</button>
+        <button class="btn" id="closeCamBtn" type="button" data-tip="Ends verification. Your nose may now rest. (Esc)">Close (sniff)</button>
+      </div>
+      <p class="privacy" data-tip="Truly. There is no server. There is barely a website.">Camera stays on your device. We are too lazy to store it.</p>
+    </div>
+  </div>
+</div>
+
+<video id="camVideo" playsinline muted autoplay></video>
+<canvas id="fx" aria-hidden="true"></canvas>
+<button id="returnBall" class="return-ball" type="button" hidden data-tip="It will come back. Maybe.">Return ball</button>
+<div id="duckLayer" aria-hidden="true"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="tooltip" role="tooltip"></div>
+<div id="flash" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/* =====================================================================
+   0. CONFIG + UTILITIES
+   ===================================================================== */
+const CONFIG = {
+  // Face library. Tries CDN first, then the local copy in ./vendor (see README).
+  // Override with ?face=cdn | ?face=local | ?face=off
+  faceLib: {
+    cdn: {
+      bundle: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs',
+      wasm:   'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+      model:  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+    },
+    local: {
+      bundle: './vendor/mediapipe/vision_bundle.mjs',
+      wasm:   './vendor/mediapipe/wasm',
+      model:  './vendor/mediapipe/face_landmarker.task',
+    },
+    timeoutMs: 20000,
+  },
+  act3DelayMs: 2000,       // ball escape -> nostril act
+  returnBallDelayMs: 10000,
+  noFaceTimeoutMs: 5000,
+  scanMinMs: 2400,
+  lockMs: 2000,
+};
+const PARAMS = new URLSearchParams(location.search);
+const FONT = getComputedStyle(document.documentElement).getPropertyValue('--font').trim() || 'system-ui, sans-serif';
+const FUN_FONT = '"Comic Sans MS", "Comic Neue", "Chalkboard SE", ' + FONT;
+const INK = '#1f2433';
+const TAU = Math.PI * 2;
+
+const $ = (s, r = document) => r.querySelector(s);
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const now = () => performance.now();
+
+/** Pick from a list without repeating the previous pick. */
+function picker(list) {
+  let last = -1;
+  return () => { let i; do { i = Math.floor(Math.random() * list.length); } while (list.length > 1 && i === last); last = i; return list[i]; };
+}
+
+/** Tracked timeouts so R (reset) can cancel every pending gag at once. */
+const timers = new Set();
+function later(fn, ms) {
+  const id = setTimeout(() => { timers.delete(id); try { fn(); } catch (e) { console.warn('[please-hold]', e); } }, ms);
+  timers.add(id);
+  return id;
+}
+function clearLaters() { timers.forEach(clearTimeout); timers.clear(); }
+
+/** MediaPipe's WASM prints harmless INFO/glog lines through console.error. Hide only those. */
+(function quietLibraryNoise() {
+  const noisy = /^(INFO:|WARNING: All log messages before absl|[IWE]\d{4} |.*XNNPACK)|TensorFlow Lite|gl_context|OpenGL error checking|Graph successfully started/;
+  for (const k of ['error', 'warn', 'info', 'log']) {
+    const orig = console[k].bind(console);
+    console[k] = (...a) => { if (typeof a[0] === 'string' && noisy.test(a[0])) return; orig(...a); };
+  }
+})();
+
+/* =====================================================================
+   1. AUDIO ENGINE (Web Audio only, no files)
+   chain: voices -> sfx gain (the fake/real volume slider) -> master gain
+          (the honest mute) -> limiter -> speakers
+   ===================================================================== */
+const AE = { ctx: null, sfx: null, master: null, noise: null, muted: false, masterLevel: 1, sfxLevel: 0.5, voices: 0, MAX_VOICES: 16 };
+
+/** Create/resume the AudioContext. Only called from user gestures. */
+function ensureAudio() {
+  if (AE.ctx) {
+    if (AE.ctx.state === 'suspended' && !document.hidden) AE.ctx.resume().catch(() => {});
+    return AE.ctx;
+  }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  try {
+    const ctx = new AC();
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -10; limiter.knee.value = 2; limiter.ratio.value = 20;
+    limiter.attack.value = 0.002; limiter.release.value = 0.15;
+    const master = ctx.createGain(); master.gain.value = AE.muted ? 0 : AE.masterLevel;
+    const sfx = ctx.createGain(); sfx.gain.value = AE.sfxLevel;
+    sfx.connect(master); master.connect(limiter); limiter.connect(ctx.destination);
+    const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < ch.length; i++) ch[i] = Math.random() * 2 - 1;
+    Object.assign(AE, { ctx, sfx, master, noise: buf });
+    return ctx;
+  } catch (e) { return null; }
+}
+function applyMaster() {
+  if (!AE.ctx) return;
+  AE.master.gain.setTargetAtTime(AE.muted ? 0 : AE.masterLevel, AE.ctx.currentTime, 0.02);
+}
+function setSfxLevel(v) {
+  AE.sfxLevel = clamp(v, 0, 1);
+  if (AE.ctx) AE.sfx.gain.setTargetAtTime(AE.sfxLevel, AE.ctx.currentTime, 0.03);
+}
+/** Voice limiter: refuse new sounds when too many are playing (prevents stacking). */
+function canPlay(dur) {
+  if (!AE.ctx || AE.muted || AE.ctx.state !== 'running' || AE.voices >= AE.MAX_VOICES) return false;
+  AE.voices++;
+  setTimeout(() => { AE.voices = Math.max(0, AE.voices - 1); }, dur * 1000 + 80);
+  return true;
+}
+const T0 = () => AE.ctx.currentTime + 0.004;
+const mkGain = (v = 0) => { const g = AE.ctx.createGain(); g.gain.value = v; return g; };
+const mkOsc = (type, f) => { const o = AE.ctx.createOscillator(); o.type = type; o.frequency.value = f; return o; };
+const mkBq = (type, f, Q = 1) => { const b = AE.ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = Q; return b; };
+const mkNoise = () => { const s = AE.ctx.createBufferSource(); s.buffer = AE.noise; s.loop = true; return s; };
+function env(g, t, a, peak, dur) {
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + a);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+}
+function run(nodes, t, dur) { for (const n of nodes) { n.start(t); n.stop(t + dur + 0.05); } }
+/** LFO that wobbles one or more AudioParams. */
+function mkLfo(freq, depth, params, t, dur, decay = true, type = 'sine') {
+  const o = mkOsc(type, freq), g = mkGain(depth);
+  if (decay) { g.gain.setValueAtTime(depth, t); g.gain.exponentialRampToValueAtTime(Math.max(0.01, depth * 0.04), t + dur); }
+  o.connect(g); for (const p of params) g.connect(p);
+  return o;
+}
+const impactVol = p => 0.35 + 0.65 * p;
+
+/* =====================================================================
+   2. SOUND LIBRARY
+   ===================================================================== */
+const SFX = {
+  /** Nasal duck: saw+square, fast pitch bend, swept bandpass. Never the same twice. */
+  quack(intensity = 1) {
+    if (!canPlay(0.6)) return;
+    const t = T0(), f0 = rand(330, 540), dur = rand(0.15, 0.26);
+    const syl = Math.random() < 0.3 ? 2 : 1;
+    for (let s = 0; s < syl; s++) {
+      const ts = t + s * dur * 0.9, d = s ? dur * 0.7 : dur;
+      const o1 = mkOsc('sawtooth', f0), o2 = mkOsc('square', f0);
+      const fs = f0 * rand(1.1, 1.35), fp = f0 * rand(1.3, 1.55), fe = f0 * rand(0.55, 0.78);
+      [o1, o2].forEach((o, i) => {
+        const m = i ? rand(1.003, 1.012) : 1;
+        o.frequency.setValueAtTime(fs * m, ts);
+        o.frequency.linearRampToValueAtTime(fp * m, ts + d * 0.18);
+        o.frequency.exponentialRampToValueAtTime(fe * m, ts + d);
+      });
+      const bp = mkBq('bandpass', 1100, rand(3, 6));
+      bp.frequency.setValueAtTime(rand(850, 1200), ts);
+      bp.frequency.linearRampToValueAtTime(rand(1500, 2100), ts + d * 0.25);
+      bp.frequency.exponentialRampToValueAtTime(rand(650, 900), ts + d);
+      const nasal = mkBq('peaking', rand(2600, 3200), 6); nasal.gain.value = 10;
+      const sq = mkGain(0.45);
+      const g = mkGain(); env(g, ts, 0.012, 1.6 * intensity, d);
+      o1.connect(bp); o2.connect(sq).connect(bp); bp.connect(nasal).connect(g).connect(AE.sfx);
+      run([o1, o2], ts, d);
+    }
+  },
+  tick(p) {
+    if (!canPlay(0.06)) return;
+    const t = T0(), o = mkOsc('triangle', rand(1700, 2600)), g = mkGain();
+    env(g, t, 0.002, 0.04 + 0.1 * p, 0.05); o.connect(g).connect(AE.sfx); run([o], t, 0.06);
+  },
+  plink() {
+    if (!canPlay(0.4)) return;
+    const t = T0(); const g = mkGain(); env(g, t, 0.004, 0.35, 0.38);
+    const base = pick([1046.5, 1174.7, 1318.5, 1568]);
+    const a = mkOsc('sine', base), b = mkOsc('sine', base * 1.5);
+    a.connect(g); b.connect(g); g.connect(AE.sfx); run([a, b], t, 0.4);
+  },
+  nope() {
+    if (!canPlay(0.2)) return;
+    const t = T0(), o = mkOsc('square', 230), lp = mkBq('lowpass', 1100), g = mkGain();
+    o.frequency.setValueAtTime(240, t); o.frequency.exponentialRampToValueAtTime(140, t + 0.16);
+    env(g, t, 0.005, 0.22, 0.18); o.connect(lp).connect(g).connect(AE.sfx); run([o], t, 0.2);
+  },
+  // ---------- edge-hit bank for the escaped ball ----------
+  boing(p) {
+    const d = 0.6; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.8 + p * 0.5, o = mkOsc('sine', 120 * pm), o2 = mkOsc('triangle', 240 * pm);
+    for (const [osc, m] of [[o, 1], [o2, 2]]) { osc.frequency.setValueAtTime(110 * pm * m, t); osc.frequency.exponentialRampToValueAtTime(300 * pm * m, t + 0.35); }
+    const l = mkLfo(17, 70 * pm, [o.frequency, o2.frequency], t, d);
+    const g = mkGain(), g2 = mkGain(0.25); env(g, t, 0.005, 0.8 * impactVol(p), d);
+    o.connect(g); o2.connect(g2).connect(g); g.connect(AE.sfx); run([o, o2, l], t, d);
+  },
+  spring(p) {
+    const d = 0.8; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.8 + p * 0.5, o = mkOsc('triangle', 280 * pm);
+    o.frequency.setValueAtTime(300 * pm, t); o.frequency.exponentialRampToValueAtTime(190 * pm, t + d);
+    const l = mkLfo(11, 110 * pm, [o.frequency], t, d);
+    const g = mkGain(); env(g, t, 0.004, 0.7 * impactVol(p), d);
+    o.connect(g).connect(AE.sfx); run([o, l], t, d);
+  },
+  raspberry(p) {
+    const d = 0.55; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.8 + p * 0.5, o = mkOsc('sawtooth', 85 * pm);
+    o.frequency.setValueAtTime(100 * pm, t); o.frequency.linearRampToValueAtTime(62 * pm, t + d);
+    const lp = mkBq('lowpass', 750, 2), am = mkGain(0.5), chop = mkLfo(rand(22, 30), 0.5, [am.gain], t, d, false, 'square');
+    const n = mkNoise(), nb = mkBq('bandpass', 380, 1), ng = mkGain(0.7);
+    const g = mkGain(); env(g, t, 0.02, 1.1 * impactVol(p), d);
+    o.connect(lp); n.connect(nb).connect(ng).connect(lp); lp.connect(am).connect(g).connect(AE.sfx);
+    run([o, chop, n], t, d);
+  },
+  squeak(p) {
+    const d = 0.32; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.85 + p * 0.4, o = mkOsc('sine', 900), o2 = mkOsc('square', 900), lp = mkBq('lowpass', 2600), g = mkGain(0.0001), g2 = mkGain(0.12);
+    for (const [s, len] of [[0, 0.13], [0.16, 0.12]]) {
+      for (const osc of [o, o2]) {
+        osc.frequency.setValueAtTime(900 * pm, t + s);
+        osc.frequency.exponentialRampToValueAtTime(1750 * pm, t + s + len * 0.5);
+        osc.frequency.exponentialRampToValueAtTime(1250 * pm, t + s + len);
+      }
+      g.gain.setValueAtTime(0.0001, t + s);
+      g.gain.exponentialRampToValueAtTime(0.5 * impactVol(p), t + s + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + s + len);
+    }
+    o.connect(g); o2.connect(lp).connect(g2).connect(g); g.connect(AE.sfx); run([o, o2], t, d);
+  },
+  slide(p, down = Math.random() < 0.4) {
+    const d = 0.55; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.85 + p * 0.35, o = mkOsc('sine', 500);
+    const [a, b] = down ? [1700, 380] : [430, 1750];
+    o.frequency.setValueAtTime(a * pm, t); o.frequency.exponentialRampToValueAtTime(b * pm, t + d * 0.9);
+    const l = mkLfo(6.5, 22, [o.frequency], t, d, false);
+    const g = mkGain(); env(g, t, 0.03, 0.5 * impactVol(p), d);
+    o.connect(g).connect(AE.sfx); run([o, l], t, d);
+  },
+  bonk(p) {
+    const d = 0.25; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.85 + p * 0.4, o = mkOsc('sine', 260 * pm), g = mkGain();
+    o.frequency.setValueAtTime(270 * pm, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.18);
+    env(g, t, 0.002, 1 * impactVol(p), 0.22);
+    const w = mkOsc('square', 950 * pm), wb = mkBq('bandpass', 1100 * pm, 8), wg = mkGain(); env(wg, t, 0.001, 0.6 * impactVol(p), 0.07);
+    const n = mkNoise(), hp = mkBq('highpass', 2200), ng = mkGain(); env(ng, t, 0.001, 0.3, 0.03);
+    o.connect(g).connect(AE.sfx); w.connect(wb).connect(wg).connect(AE.sfx); n.connect(hp).connect(ng).connect(AE.sfx);
+    run([o, w, n], t, d);
+  },
+  yelp(p) {
+    const d = 0.78; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.85 + p * 0.35, o = mkOsc('sawtooth', 480 * pm);
+    o.frequency.setValueAtTime(470 * pm, t);
+    o.frequency.exponentialRampToValueAtTime(990 * pm, t + 0.09);
+    o.frequency.linearRampToValueAtTime(830 * pm, t + 0.36);
+    o.frequency.exponentialRampToValueAtTime(330 * pm, t + d);
+    const l = mkLfo(7.5, 24, [o.frequency], t, d, false);
+    const b1 = mkBq('bandpass', 1000, 2.5), b2 = mkBq('bandpass', 2500, 5), g2 = mkGain(0.6), g = mkGain(0.0001);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.3 * impactVol(p), t + 0.04);
+    g.gain.setValueAtTime(1.3 * impactVol(p), t + d * 0.6); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(b1).connect(g); o.connect(b2).connect(g2).connect(g); g.connect(AE.sfx); run([o, l], t, d);
+  },
+  pop(p = 0.6) {
+    const d = 0.1; if (!canPlay(d)) return;
+    const t = T0(), pm = 0.8 + p * 0.5, o = mkOsc('sine', 240 * pm), g = mkGain();
+    o.frequency.setValueAtTime(230 * pm, t); o.frequency.exponentialRampToValueAtTime(1400 * pm, t + 0.055);
+    env(g, t, 0.002, 0.7 * impactVol(p), 0.08);
+    const n = mkNoise(), hp = mkBq('highpass', 3000), ng = mkGain(); env(ng, t, 0.001, 0.25, 0.02);
+    o.connect(g).connect(AE.sfx); n.connect(hp).connect(ng).connect(AE.sfx); run([o, n], t, d);
+  },
+  // ---------- phone + misc ----------
+  dtmf(digit) {
+    const pairs = { 1: [697, 1209], 2: [697, 1336], 3: [697, 1477], 4: [770, 1209], 5: [770, 1336], 6: [770, 1477], 7: [852, 1209], 8: [852, 1336], 9: [852, 1477], 0: [941, 1336] };
+    if (!canPlay(0.2)) return;
+    const t = T0(), g = mkGain(); env(g, t, 0.005, 0.22, 0.18);
+    const [a, b] = pairs[digit] || pairs[0];
+    const o1 = mkOsc('sine', a), o2 = mkOsc('sine', b); o1.connect(g); o2.connect(g); g.connect(AE.sfx); run([o1, o2], t, 0.2);
+  },
+  ring() {
+    if (!canPlay(2.6)) return;
+    const t = T0(), g = mkGain(0), o1 = mkOsc('sine', 440), o2 = mkOsc('sine', 480);
+    for (const s of [0, 1.4]) { g.gain.setValueAtTime(0, t + s); g.gain.linearRampToValueAtTime(0.16, t + s + 0.02); g.gain.setValueAtTime(0.16, t + s + 0.95); g.gain.linearRampToValueAtTime(0, t + s + 1); }
+    o1.connect(g); o2.connect(g); g.connect(AE.sfx); run([o1, o2], t, 2.5);
+  },
+  kazoo(f, t, d, v = 0.3) {
+    const o = mkOsc('sawtooth', f), o2 = mkOsc('sawtooth', f * 1.006), bp = mkBq('bandpass', 1150, 1.3), g = mkGain(0);
+    const l = mkLfo(5.5, f * 0.014, [o.frequency, o2.frequency], t, d, false);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + 0.02); g.gain.setValueAtTime(v, t + d - 0.04); g.gain.linearRampToValueAtTime(0, t + d);
+    o.connect(bp); o2.connect(bp); bp.connect(g).connect(AE.sfx); run([o, o2, l], t, d);
+  },
+  fanfare() {
+    if (!canPlay(1)) return;
+    let t = T0();
+    for (const [f, d] of [[523.25, 0.12], [659.25, 0.12], [783.99, 0.12], [1046.5, 0.45]]) { SFX.kazoo(f, t, d, 0.42); t += d + 0.02; }
+  },
+  holdMusic() {
+    if (!canPlay(5)) return;
+    // Fur Elise (public domain), performed on a kazoo, as Beethoven intended.
+    const E5 = 659.25, Ds5 = 622.25, B4 = 493.88, D5 = 587.33, C5 = 523.25, A4 = 440, C4 = 261.63, E4 = 329.63, Gs4 = 415.3;
+    const seq = [[E5, .2], [Ds5, .2], [E5, .2], [Ds5, .2], [E5, .2], [B4, .2], [D5, .2], [C5, .2], [A4, .5], [0, .1], [C4, .2], [E4, .2], [A4, .2], [B4, .5], [0, .1], [E4, .2], [Gs4, .2], [B4, .2], [C5, .6]];
+    let t = T0();
+    for (const [f, d] of seq) { if (f) SFX.kazoo(f, t, d * 0.95, 0.3); t += d; }
+  },
+  flush() {
+    if (!canPlay(1.1)) return;
+    SFX.slide(0.6, true);
+    const t = T0(), n = mkNoise(), lp = mkBq('lowpass', 3000, 3), g = mkGain();
+    lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(180, t + 1);
+    env(g, t, 0.08, 0.5, 1.05); n.connect(lp).connect(g).connect(AE.sfx); run([n], t, 1.1);
+  },
+  shutter() {
+    if (!canPlay(0.2)) return;
+    const t = T0();
+    for (const s of [0, 0.08]) { const n = mkNoise(), hp = mkBq('highpass', 1600), g = mkGain(); env(g, t + s, 0.002, 0.6, 0.05); n.connect(hp).connect(g).connect(AE.sfx); run([n], t + s, 0.06); }
+  },
+  alarm() {
+    if (!canPlay(1)) return;
+    const t = T0(), o = mkOsc('square', 880), lp = mkBq('lowpass', 2200), g = mkGain(0.0001);
+    for (let i = 0; i < 6; i++) { o.frequency.setValueAtTime(i % 2 ? 660 : 880, t + i * 0.15); }
+    env(g, t, 0.01, 0.22, 0.9); o.connect(lp).connect(g).connect(AE.sfx); run([o], t, 0.92);
+  },
+  sniff() {
+    if (!canPlay(0.9)) return;
+    const t = T0();
+    for (const s of [0, 0.38]) {
+      const n = mkNoise(), bp = mkBq('bandpass', 700, 2.2), g = mkGain(0.0001);
+      bp.frequency.setValueAtTime(600, t + s); bp.frequency.exponentialRampToValueAtTime(2600, t + s + 0.3);
+      g.gain.setValueAtTime(0.0001, t + s); g.gain.exponentialRampToValueAtTime(0.9, t + s + 0.22); g.gain.exponentialRampToValueAtTime(0.0001, t + s + 0.32);
+      n.connect(bp).connect(g).connect(AE.sfx); run([n], t + s, 0.34);
+    }
+  },
+  bloop() {
+    if (!canPlay(0.12)) return;
+    const t = T0(), o = mkOsc('sine', 520), g = mkGain();
+    o.frequency.setValueAtTime(rand(480, 620), t); o.frequency.exponentialRampToValueAtTime(rand(200, 260), t + 0.09);
+    env(g, t, 0.004, 0.16, 0.1); o.connect(g).connect(AE.sfx); run([o], t, 0.12);
+  },
+  ding() {
+    if (!canPlay(0.6)) return;
+    const t = T0(), g = mkGain(); env(g, t, 0.004, 0.28, 0.55);
+    const a = mkOsc('sine', 1568), b = mkOsc('sine', 2093); a.connect(g); b.connect(g); g.connect(AE.sfx); run([a, b], t, 0.6);
+  },
+};
+/** Rotating bank for ball edge hits, with matching comic words. */
+const HIT_BANK = [
+  ['boing', 'BOING!'], ['spring', 'DOYOYOING!'], ['raspberry', 'PBBT!'], ['squeak', 'SQUEAK!'],
+  ['slide', 'WHEEE!'], ['bonk', 'BONK!'], ['yelp', 'AAAAH!'], ['pop', 'POP!'],
+];
+
+/* =====================================================================
+   3. SPEECH (fake robot voice, optional)
+   ===================================================================== */
+function pickVoice() {
+  try {
+    const vs = window.speechSynthesis.getVoices() || [];
+    for (const p of ['Fred', 'Zarvox', 'Microsoft David', 'Google UK English Male', 'Daniel', 'Alex']) {
+      const v = vs.find(v => v.name.includes(p)); if (v) return v;
+    }
+    return vs.find(v => /^en/i.test(v.lang)) || null;
+  } catch (e) { return null; }
+}
+function speak(text, opts = {}) {
+  try {
+    if (!('speechSynthesis' in window) || AE.muted) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = opts.rate ?? 0.92; u.pitch = opts.pitch ?? 0.15; u.volume = AE.masterLevel;
+    const v = pickVoice(); if (v) u.voice = v;
+    window.speechSynthesis.speak(u);
+  } catch (e) { /* speech is optional */ }
+}
+function stopSpeech() { try { window.speechSynthesis && window.speechSynthesis.cancel(); } catch (e) {} }
+try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch (e) {}
+
+/* =====================================================================
+   4. UI HELPERS: duck pops, tooltip, toast, sanity, chaos, tickers
+   ===================================================================== */
+const DUCK_SVG = `<svg viewBox="0 0 64 64" aria-hidden="true"><ellipse cx="36" cy="43" rx="23" ry="14" fill="#ffd84a" stroke="${INK}" stroke-width="3"/><path d="M40 38 q8 -6 14 0 q-6 7 -14 0z" fill="#ffc21a" stroke="${INK}" stroke-width="2.5"/><circle cx="24" cy="25" r="12.5" fill="#ffd84a" stroke="${INK}" stroke-width="3"/><path d="M12 26 q-9 -1 -11 4 q6 3 13 1z" fill="#ff8a1f" stroke="${INK}" stroke-width="2.5" stroke-linejoin="round"/><circle cx="22" cy="21" r="3" fill="${INK}"/><circle cx="21" cy="20" r="1" fill="#fff"/><ellipse cx="27" cy="30" rx="3" ry="2" fill="#ff9aa8" opacity=".7"/></svg>`;
+$('#logoDuck').innerHTML = DUCK_SVG;
+$('#permIcon').innerHTML = `<svg viewBox="0 0 120 120" aria-hidden="true"><path d="M60 6 L106 22 V58 C106 86 86 104 60 114 C34 104 14 86 14 58 V22 Z" fill="#7ee8f2" stroke="${INK}" stroke-width="5"/><path d="M60 30 C54 48 44 62 44 72 C44 82 52 86 60 86 C68 86 76 82 76 72 C76 62 66 48 60 30Z" fill="#ffcf9e" stroke="${INK}" stroke-width="4"/><ellipse cx="53" cy="77" rx="4" ry="3" fill="${INK}"/><ellipse cx="67" cy="77" rx="4" ry="3" fill="${INK}"/><path d="M53 81 q-2 10 1 14 q3 -4 -1 -14z" fill="#9bb53a" stroke="${INK}" stroke-width="2"/></svg>`;
+
+const duckLayer = $('#duckLayer');
+const nextReaction = picker(['quack?', 'again?', 'QUACK.', 'that tickles', "I'm a duck, not a keypad", 'ok but why', 'quack (professionally)', 'you again', '*judgmental quack*', 'number noted. probably.', 'bold choice', 'please hold']);
+function duckPop(x, y, text) {
+  if (duckLayer.childElementCount > 6) duckLayer.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = 'duck-pop';
+  el.style.left = x + 'px'; el.style.top = (y - 70) + 'px';
+  el.innerHTML = `<div class="bubble">${text}</div>${DUCK_SVG}`;
+  duckLayer.appendChild(el);
+  setTimeout(() => el.remove(), 1050);
+}
+function duckAt(el, text = nextReaction()) {
+  const r = el.getBoundingClientRect();
+  duckPop(clamp(r.left + r.width / 2, 70, innerWidth - 70), Math.max(r.top, 110), text);
+}
+
+// Custom tooltips (native ones are too slow for a live demo)
+const tipEl = $('#tooltip');
+let tipTarget = null;
+document.addEventListener('pointerover', e => {
+  if (e.pointerType === 'touch') return;
+  const el = e.target.closest && e.target.closest('[data-tip]');
+  if (el === tipTarget) return;
+  tipTarget = el;
+  if (!el) { tipEl.classList.remove('show'); return; }
+  tipEl.textContent = el.dataset.tip;
+  const r = el.getBoundingClientRect(), tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+  let x = clamp(r.left + r.width / 2 - tw / 2, 6, innerWidth - tw - 6);
+  let y = r.top - th - 10;
+  if (y < 44) y = Math.min(r.bottom + 10, innerHeight - th - 6);
+  tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px';
+  tipEl.classList.add('show');
+});
+document.addEventListener('pointerdown', () => { tipEl.classList.remove('show'); tipTarget = null; }, true);
+
+let toastTimer = 0;
+function toast(msg, ms = 1800) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+// ---------- Sanity + chaos ----------
+const S = { sanityTarget: 100, sanityShown: 100, chaos: 0, callBusy: false, callerNum: 7, dodges: 0, holdPlaying: false };
+const sanityVal = $('#sanityVal'), sanityBar = $('#sanityBar');
+function setSanity(v) { S.sanityTarget = clamp(v, -404, 100); }
+function dropSanity(by) { setSanity(S.sanityTarget - by); }
+function renderSanity(dt) {
+  S.sanityShown = lerp(S.sanityShown, S.sanityTarget, 1 - Math.exp(-dt * 4));
+  if (Math.abs(S.sanityShown - S.sanityTarget) < 0.05) S.sanityShown = S.sanityTarget;
+  const v = Math.round(S.sanityShown);
+  const txt = v + '%' + (v < 0 ? ' (overdrawn)' : '');
+  if (sanityVal.textContent !== txt) {
+    sanityVal.textContent = txt;
+    sanityVal.className = v < 0 ? 'neg' : v <= 25 ? 'bad' : v <= 60 ? 'warn' : '';
+    sanityBar.style.width = clamp(v, 0, 100) + '%';
+    sanityBar.style.background = v <= 25 ? '#ff4d4d' : v <= 60 ? '#ffd23f' : '#37d67a';
+  }
+}
+const GRAVITY_TXT = ['nominal', 'nominal-ish', 'suspicious', 'UPSET', 'who knows'];
+const DUCKS_TXT = ['3 online', 'QUACKING', 'unionizing', 'in charge', 'everywhere'];
+const TICKER_TXT = [
+  'Welcome to the Secure Number Entry Portal\u2122. Your call is important to us. Please hold.',
+  'Notice: digits may be inserted in a non-sequential order for your security. Please hold.',
+  'NUMBER ACCEPTED!!! Please continue holding. Holding is now mandatory. Thank you for holding.',
+  'ALERT: the volume knob has left the building. Do NOT approach the ball. Please hold.',
+  'NOSTRIL VERIFICATION IN PROGRESS. Please remain nostrilled. Please hold. Please. Hold.',
+];
+function setTicker() {
+  const t = TICKER_TXT[S.chaos];
+  $('#ticker').innerHTML = `<span>${t}</span><span>${t}</span>`;
+}
+/** Chaos only goes up (except on reset). Classes are cumulative: c1..cN. */
+function setChaos(n, force = false) {
+  if (!force && n <= S.chaos) return;
+  S.chaos = n;
+  for (let i = 0; i <= 4; i++) document.body.classList.toggle('c' + i, i <= n);
+  $('#sbGravity').textContent = GRAVITY_TXT[n];
+  $('#sbDucks').textContent = DUCKS_TXT[n];
+  setTicker();
+}
+
+// Rotating microcopy under the board
+const LOADING = [
+  'Consulting the ducks...', 'Shuffling your digits for security...', 'Recalibrating gravity...',
+  'Polishing the pegs...', 'Applying duck-grade encryption...', 'Randomizing responsibly...',
+  'Asking the funnel nicely...', 'Reticulating digits...', 'Your digits are in good hands. Probably.',
+  'Please hold...', 'Bribing the slots...', 'Converting digits to vibes...',
+];
+const nextLoading = picker(LOADING);
+setInterval(() => {
+  if (document.hidden) return;
+  const el = $('#loadingText'); el.classList.add('out');
+  setTimeout(() => { el.textContent = nextLoading(); el.classList.remove('out'); }, 250);
+}, 2300);
+// The queue only ever gets longer.
+setInterval(() => {
+  if (document.hidden) return;
+  S.callerNum += randInt(1, S.chaos + 2);
+  $('#callerNum').textContent = '#' + S.callerNum;
+}, 3200);
+$('#visitors').textContent = String(randInt(100, 9999999)).padStart(7, '0');
+
+/* =====================================================================
+   5. HOMEMADE PHYSICS (no libraries): circles vs segments/circles
+   ===================================================================== */
+function distPointSeg(px, py, s) {
+  const dx = s.bx - s.ax, dy = s.by - s.ay, l2 = dx * dx + dy * dy || 1;
+  const t = clamp(((px - s.ax) * dx + (py - s.ay) * dy) / l2, 0, 1);
+  return Math.hypot(px - (s.ax + dx * t), py - (s.ay + dy * t));
+}
+/** Reflect velocity about normal n with restitution e and tangential friction fr. Returns impact speed. */
+function bounceVel(b, nx, ny, e, fr) {
+  const vn = b.vx * nx + b.vy * ny;
+  if (vn >= 0) return 0;
+  const tx = -ny, ty = nx, vt = b.vx * tx + b.vy * ty;
+  const nvn = -vn * e, nvt = vt * (1 - fr);
+  b.vx = nx * nvn + tx * nvt; b.vy = ny * nvn + ty * nvt;
+  b.spin = lerp(b.spin || 0, nvt / b.r, 0.5);
+  return -vn;
+}
+function collideSeg(b, s, e, fr) {
+  const dx = s.bx - s.ax, dy = s.by - s.ay, l2 = dx * dx + dy * dy || 1;
+  const t = clamp(((b.x - s.ax) * dx + (b.y - s.ay) * dy) / l2, 0, 1);
+  let nx = b.x - (s.ax + dx * t), ny = b.y - (s.ay + dy * t);
+  const minD = b.r + s.r, d2 = nx * nx + ny * ny;
+  if (d2 >= minD * minD) return 0;
+  let d = Math.sqrt(d2);
+  if (d < 1e-6) { nx = -dy; ny = dx; d = Math.hypot(nx, ny) || 1; }
+  nx /= d; ny /= d;
+  b.x += nx * (minD - d); b.y += ny * (minD - d);
+  return bounceVel(b, nx, ny, e, fr);
+}
+function collideStatic(b, cx, cy, cr, e, fr) {
+  let nx = b.x - cx, ny = b.y - cy;
+  const minD = b.r + cr, d2 = nx * nx + ny * ny;
+  if (d2 >= minD * minD) return 0;
+  const d = Math.sqrt(d2) || 1e-3; nx /= d; ny /= d;
+  b.x = cx + nx * minD; b.y = cy + ny * minD;
+  return bounceVel(b, nx, ny, e, fr);
+}
+function collideDyn(a, b, e) {
+  let nx = b.x - a.x, ny = b.y - a.y;
+  const minD = a.r + b.r, d2 = nx * nx + ny * ny;
+  if (d2 >= minD * minD || d2 === 0) return 0;
+  const d = Math.sqrt(d2); nx /= d; ny /= d;
+  const ma = a.m || 1, mb = b.m || 1, tot = ma + mb, ov = minD - d;
+  a.x -= nx * ov * (mb / tot); a.y -= ny * ov * (mb / tot);
+  b.x += nx * ov * (ma / tot); b.y += ny * ov * (ma / tot);
+  const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+  if (rv > 0) return 0;
+  const j = -(1 + e) * rv / (1 / ma + 1 / mb);
+  a.vx -= j * nx / ma; a.vy -= j * ny / ma; b.vx += j * nx / mb; b.vy += j * ny / mb;
+  return -rv;
+}
+
+const DIGIT_COLORS = ['#ff5d5d', '#ff9f1c', '#f7c600', '#2ec4a6', '#0ead69', '#3a86ff', '#8338ec', '#ff006e', '#00a6e6', '#e44fb0'];
+const DIGIT_DARK = ['#b52f2f', '#b86a00', '#a88700', '#1a8572', '#077342', '#1f56b8', '#5419a8', '#a8004a', '#00709c', '#9c2a76'];
+function drawDigitBall(ctx, x, y, r, d, angle, color, alpha = 1) {
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(x, y); ctx.rotate(angle);
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = color; ctx.fill();
+  ctx.lineWidth = Math.max(2, r * 0.14); ctx.strokeStyle = INK; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(-r * 0.35, -r * 0.42, r * 0.32, r * 0.17, -0.6, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fill();
+  ctx.font = `900 ${Math.round(r * 1.25)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = r * 0.22; ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineJoin = 'round';
+  ctx.strokeText(d, 0, r * 0.08); ctx.fillStyle = '#fff'; ctx.fillText(d, 0, r * 0.08);
+  ctx.restore();
+}
+
+/* =====================================================================
+   6. ACT 1 WORLD: the pachinko board (local canvas coordinates)
+   ===================================================================== */
+const Board = { cv: $('#board'), ctx: null, W: 0, H: 0, dpr: 1, segs: [], pegs: [], bodies: [], slots: new Array(10).fill(null), binTop: 0, r: 16, pegR: 5, g: 1000, pops: [], nextId: 1, lastTick: 0 };
+Board.ctx = Board.cv.getContext('2d');
+const binCenter = i => (i + 0.5) * Board.W / 10;
+const binIndex = x => clamp(Math.floor(x / (Board.W / 10)), 0, 9);
+function nextFree(i) { for (let k = 1; k <= 10; k++) { const j = (i + k) % 10; if (!Board.slots[j]) return j; } return -1; }
+
+function layoutBoard() {
+  const cv = Board.cv, W = cv.clientWidth, H = cv.clientHeight;
+  if (!W || !H) return;
+  const oldW = Board.W || W, oldH = Board.H || H;
+  Board.dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * Board.dpr); cv.height = Math.round(H * Board.dpr);
+  Board.W = W; Board.H = H;
+  buildBoardGeometry();
+  for (const b of Board.bodies) {
+    b.x *= W / oldW; b.y *= H / oldH; b.r = Board.r;
+    if (b.state === 'settled') { b.x = binCenter(b.slot); b.y = H - b.r - 3; }
+  }
+}
+function buildBoardGeometry() {
+  const { W, H } = Board;
+  const r = Board.r = clamp(Math.min(W / 10 * 0.36, H * 0.055), 9, 22);
+  const t = clamp(W * 0.005, 2.5, 4);
+  Board.g = H * 3.2;
+  const segs = Board.segs = [];
+  const S_ = (ax, ay, bx, by, kind = 'ramp') => segs.push({ ax, ay, bx, by, r: t, kind });
+  S_(0, -500, 0, H, 'wall'); S_(W, -500, W, H, 'wall');
+  S_(0, H * 0.08, W * 0.22, H * 0.15); S_(W, H * 0.08, W * 0.78, H * 0.15);             // top ramps
+  const gap = r * 2.7;
+  S_(W * 0.35, H * 0.28, W / 2 - gap / 2, H * 0.36, 'funnel'); S_(W * 0.65, H * 0.28, W / 2 + gap / 2, H * 0.36, 'funnel');
+  S_(0, H * 0.56, W * 0.08, H * 0.61); S_(W, H * 0.56, W * 0.92, H * 0.61);               // side deflectors
+  Board.binTop = H - Math.max(r * 2.7, H * 0.13);
+  for (let i = 1; i < 10; i++) S_(W * i / 10, Board.binTop, W * i / 10, H, 'divider');
+  S_(-10, H, W + 10, H, 'floor');
+  // Pegs: only placed where a digit can always squeeze past (no stuck digits on stage)
+  const pr = Board.pegR = clamp(r * 0.32, 3, 7);
+  const clearD = 2 * r + pr + t + 3;
+  const pegs = Board.pegs = [];
+  const addPeg = (x, y) => {
+    if (x < clearD * 0.75 || x > W - clearD * 0.75) return;
+    for (const s of segs) if (distPointSeg(x, y, s) < clearD) return;
+    for (const p of pegs) if (Math.hypot(p.x - x, p.y - y) < clearD + pr) return;
+    pegs.push({ x, y, r: pr, flash: 0 });
+  };
+  addPeg(W * 0.5, H * 0.17); addPeg(W * 0.3, H * 0.25); addPeg(W * 0.7, H * 0.25);
+  const need = clearD + pr + 1;                       // min centre distance between pegs
+  const sp = Math.max(need, W / 11);
+  const rowH = Math.max(Math.sqrt(Math.max(0, need * need - (sp / 2) ** 2)) + 1, H * 0.09);
+  let row = 0;
+  for (let y = H * 0.42; y < Board.binTop - r * 1.5; y += rowH, row++) {
+    const off = row % 2 ? sp / 2 : 0;
+    for (let x = off + sp * 0.5; x < W; x += sp) addPeg(x, y);
+  }
+}
+function boardAdopt(d, x, y, vx, vy) {
+  const r = Board.r;
+  Board.bodies.push({ id: Board.nextId++, d, x: clamp(x, r + 5, Board.W - r - 5), y, vx, vy, r, angle: rand(-0.5, 0.5), spin: rand(-4, 4), state: 'fall', tries: 0, target: -1, still: 0, age: 0, color: DIGIT_COLORS[d] });
+}
+function boardPop(x, y, text, color = '#ff2e6e') { Board.pops.push({ x, y, text, t: 0, color }); }
+function boardTick(imp) {
+  const t = now(); if (t - Board.lastTick < 35) return; Board.lastTick = t;
+  SFX.tick(clamp(imp / (Board.H * 2), 0, 1));
+}
+function startHop(b, slot) {
+  if (slot < 0) return;
+  Object.assign(b, { state: 'hop', target: slot, hopT: 0, hopDur: 0.6, hx0: b.x, hy0: b.y, hx1: binCenter(slot), hy1: Board.H - b.r - 3 });
+  boardPop(b.x, b.y - b.r, 'Fine. Slot ' + (slot + 1) + '.', '#3a86ff');
+}
+function claimSlot(b, i) {
+  if (Board.slots[i]) { const j = nextFree(i); if (j < 0) { b.dead = true; return; } return startHop(b, j); }
+  b.state = 'settled'; b.slot = i; Board.slots[i] = b;
+  const el = slotEls[i];
+  el.textContent = b.d; el.classList.remove('filled', 'drop'); void el.offsetWidth; el.classList.add('filled');
+  el.style.color = DIGIT_DARK[b.d];
+  SFX.plink(); dropSanity(1.5);
+  if (Board.slots.every(Boolean)) onNumberComplete();
+}
+function rejectFromSlot(b, i) {
+  b.tries++;
+  b.vy = -Math.sqrt(2 * Board.g * (Board.H - Board.binTop + Board.H * 0.25));
+  b.vx = rand(-1, 1) * Board.W * 0.6;
+  boardPop(binCenter(i), Board.binTop - b.r, pick(['TAKEN!', 'OCCUPIED!', 'NOPE!', 'BUSY!']));
+  SFX.nope();
+  if (b.tries >= 2) b.target = nextFree(i);
+  if (b.tries >= 4) startHop(b, nextFree(i));
+}
+function updateBoard(dt) {
+  const B = Board; if (!B.W) return;
+  const steps = Math.min(24, Math.ceil(dt * 240)), h = dt / steps;
+  const maxV = B.H * 4.5, settleK = 1 - Math.exp(-h * 18);
+  for (let s = 0; s < steps; s++) {
+    for (const b of B.bodies) {
+      if (b.state === 'settled') {
+        b.x = lerp(b.x, binCenter(b.slot), settleK); b.y = lerp(b.y, B.H - b.r - 3, settleK); b.angle = lerp(b.angle, 0, settleK * 0.4);
+        continue;
+      }
+      if (b.state === 'hop') {
+        b.hopT += h / b.hopDur; const k = Math.min(1, b.hopT);
+        b.x = lerp(b.hx0, b.hx1, k); b.y = lerp(b.hy0, b.hy1, k) - Math.sin(k * Math.PI) * B.H * 0.35; b.angle += 12 * h;
+        if (k >= 1) claimSlot(b, b.target);
+        continue;
+      }
+      b.vy += B.g * h;
+      if (b.target >= 0 && b.y > B.H * 0.4) { b.vx += clamp((binCenter(b.target) - b.x) * 12, -B.W * 3, B.W * 3) * h; b.vx *= 1 - 2 * h; }
+      b.x += b.vx * h; b.y += b.vy * h; b.angle += b.spin * h;
+      const sp = Math.hypot(b.vx, b.vy); if (sp > maxV) { b.vx *= maxV / sp; b.vy *= maxV / sp; }
+      for (const sg of B.segs) { const imp = collideSeg(b, sg, sg.kind === 'floor' ? 0.3 : 0.5, 0.02); if (imp > 60 && sg.kind !== 'floor') boardTick(imp); }
+      for (const p of B.pegs) { const imp = collideStatic(b, p.x, p.y, p.r, 0.55, 0.02); if (imp > 40) { p.flash = 1; boardTick(imp); } }
+      for (const o of B.bodies) {
+        if (o === b) continue;
+        if (o.state === 'settled') collideStatic(b, o.x, o.y, o.r, 0.5, 0.02);
+        else if (o.state === 'fall' && o.id > b.id) collideDyn(b, o, 0.5);
+      }
+      // Did it fall into a bin?
+      if (b.y > B.binTop - b.r * 1.2 && b.vy > 0) {
+        const i = binIndex(b.x);
+        if (!B.slots[i]) claimSlot(b, i); else rejectFromSlot(b, i);
+      }
+    }
+  }
+  // Anti-stuck safety net (the demo must never hang)
+  for (const b of B.bodies) {
+    if (b.state !== 'fall') continue;
+    b.age += dt;
+    const v = Math.hypot(b.vx, b.vy);
+    if (v < B.H * 0.1 && b.y < B.binTop) b.still += dt; else b.still = Math.max(0, b.still - dt);
+    if (b.still > 0.7) { b.vy = -B.H * rand(0.9, 1.3); b.vx = rand(-1, 1) * B.W * 0.5; b.still = 0; boardPop(b.x, b.y - b.r, '*nudge*', '#8338ec'); }
+    if (b.age > 9) startHop(b, nextFree(binIndex(b.x)));
+  }
+  B.bodies = B.bodies.filter(b => !b.dead);
+  for (const p of B.pegs) p.flash = Math.max(0, p.flash - dt * 4);
+  for (const p of B.pops) p.t += dt;
+  B.pops = B.pops.filter(p => p.t < 1);
+}
+const BOARD_THEME = [
+  { bg1: '#f7f9fc', bg2: '#eef2f8', ramp: '#c3ccdb', peg: '#9aa6bd', bin1: '#eef2f8', bin2: '#e6ebf3', outline: '#7d889e' },
+  { bg1: '#fff7fd', bg2: '#eafcff', ramp: '#ffd23f', peg: '#3a86ff', bin1: '#fff0f7', bin2: '#eafaff', outline: INK },
+  { bg1: '#fff3b0', bg2: '#ffd1ec', ramp: '#3bceac', peg: '#ff006e', bin1: '#fffbe0', bin2: '#ffe4f3', outline: INK },
+  { bg1: '#c8f7ff', bg2: '#ffc9f0', ramp: '#ff9f1c', peg: '#8338ec', bin1: '#ffffff', bin2: '#fff1a8', outline: INK },
+];
+function drawBoard() {
+  const { ctx, W, H, dpr } = Board; if (!W) return;
+  const th = BOARD_THEME[Math.min(3, S.chaos)];
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, th.bg1); g.addColorStop(1, th.bg2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(31,36,51,.06)';
+  for (let y = 12; y < Board.binTop; y += 24) for (let x = 12 + (y % 48 ? 12 : 0); x < W; x += 24) ctx.fillRect(x, y, 2, 2);
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = Board.slots[i] ? 'rgba(55,214,122,.18)' : (i % 2 ? th.bin1 : th.bin2);
+    ctx.fillRect(i * W / 10, Board.binTop, W / 10, H - Board.binTop);
+  }
+  ctx.lineCap = 'round';
+  for (const s of Board.segs) {
+    if (s.kind === 'floor' || s.kind === 'wall') continue;
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by);
+    ctx.lineWidth = s.r * 2 + 4; ctx.strokeStyle = th.outline; ctx.stroke();
+    ctx.lineWidth = s.r * 2; ctx.strokeStyle = s.kind === 'divider' ? '#ffffff' : th.ramp; ctx.stroke();
+  }
+  for (const p of Board.pegs) {
+    const rr = p.r * (1 + p.flash * 0.6);
+    if (p.flash > 0) { ctx.beginPath(); ctx.arc(p.x, p.y, rr * 2.2, 0, TAU); ctx.fillStyle = `rgba(255,210,63,${p.flash * 0.6})`; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, TAU); ctx.fillStyle = p.flash > 0.2 ? '#ffd23f' : th.peg; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = th.outline; ctx.stroke();
+  }
+  for (const b of Board.bodies) drawDigitBall(ctx, b.x, b.y, b.r, b.d, b.angle, b.color);
+  for (const p of Board.pops) {
+    const k = p.t, a = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+    ctx.save(); ctx.globalAlpha = a; ctx.translate(clamp(p.x, 40, W - 40), Math.max(16, p.y - k * 30));
+    ctx.scale(Math.min(1, k * 6), Math.min(1, k * 6));
+    ctx.font = `900 ${Math.round(clamp(W / 32, 13, 22))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = '#fff'; ctx.lineJoin = 'round'; ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 0); ctx.restore();
+  }
+}
+
+/* =====================================================================
+   7. FX WORLD: full-screen overlay (falling digits, pile, ball, confetti, comic words)
+   ===================================================================== */
+const FX = { cv: $('#fx'), ctx: null, W: 0, H: 0, dpr: 1, topY: 36, incoming: [], pile: [], confetti: [], popups: [], ball: null, floorOpen: false, shake: 0, g: 1900, wasDrawn: false, boardRect: null, pileToken: 0, lastHitSnd: 0, hitIdx: 0 };
+FX.ctx = FX.cv.getContext('2d');
+const appEl = $('#app');
+function layoutFX() {
+  FX.W = innerWidth; FX.H = innerHeight; FX.dpr = Math.min(2, window.devicePixelRatio || 1);
+  FX.cv.width = Math.round(FX.W * FX.dpr); FX.cv.height = Math.round(FX.H * FX.dpr);
+  FX.topY = $('#statusbar').offsetHeight || 36;
+  if (FX.ball) { FX.ball.x = clamp(FX.ball.x, FX.ball.r, FX.W - FX.ball.r); FX.ball.y = clamp(FX.ball.y, FX.topY + FX.ball.r, FX.H - FX.ball.r); }
+}
+const POP_COLORS = ['#ff2e6e', '#ff9f1c', '#3a86ff', '#0ead69', '#8338ec', '#f7c600', '#00a6e6'];
+function popup(x, y, text, opts = {}) {
+  FX.popups.push({ x: clamp(x, 90, FX.W - 90), y: clamp(y, FX.topY + 50, FX.H - 50), text, t: 0, dur: opts.dur || 1, size: opts.size || 46, rot: rand(-0.25, 0.25), color: opts.color || pick(POP_COLORS) });
+  if (FX.popups.length > 10) FX.popups.shift();
+}
+function confetti(x, y, n = 80, power = 1) {
+  for (let i = 0; i < n; i++) {
+    if (FX.confetti.length > 420) break;
+    const a = rand(-Math.PI, 0), sp = rand(300, 1000) * power;
+    FX.confetti.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, w: rand(7, 14), h: rand(4, 8), rot: rand(0, TAU), vr: rand(-12, 12), color: pick(POP_COLORS), ph: rand(0, TAU), life: rand(2.5, 4) });
+  }
+}
+function shake(amount) { FX.shake = Math.max(FX.shake, amount); }
+
+function spawnIncoming(d) {
+  const rect = Board.cv.getBoundingClientRect();
+  if (rect.top < FX.topY + 10 || rect.top > FX.H - 40) {   // board scrolled away: drop straight in
+    boardAdopt(d, rand(0.15, 0.85) * Board.W, -Board.r, rand(-40, 40), rand(50, 150));
+    return;
+  }
+  FX.incoming.push({ d, x: rect.left + rand(0.15, 0.85) * rect.width, y: FX.topY - 30, vx: rand(-30, 30), vy: rand(0, 120), r: Board.r, angle: 0, spin: rand(-6, 6), age: 0 });
+}
+function inFlightCount() { return FX.incoming.length + Board.bodies.filter(b => b.state !== 'settled').length; }
+
+function updateFX(dt) {
+  const rect = FX.boardRect = Board.cv.getBoundingClientRect();
+  // 7a. digits falling from the top of the screen into the board
+  for (const p of FX.incoming) {
+    p.vy += FX.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.angle += p.spin * dt; p.age += dt;
+    if (p.y >= rect.top - p.r * 0.2 || p.age > 2) {
+      p.done = true;
+      boardAdopt(p.d, p.x - rect.left, Math.min(p.y - rect.top, 0), p.vx * 0.3, Math.min(p.vy, Board.H * 1.6));
+    }
+  }
+  FX.incoming = FX.incoming.filter(p => !p.done);
+  // 7b. the pile (cleared digits) + the escaped ball, with substeps
+  const steps = Math.min(16, Math.ceil(dt * 240)), h = dt / steps;
+  for (let s = 0; s < steps; s++) {
+    for (const p of FX.pile) {
+      p.vy += FX.g * h; p.x += p.vx * h; p.y += p.vy * h; p.angle += p.spin * h;
+      if (p.x < p.r) { p.x = p.r; p.vx = Math.abs(p.vx) * 0.4; }
+      if (p.x > FX.W - p.r) { p.x = FX.W - p.r; p.vx = -Math.abs(p.vx) * 0.4; }
+      if (!FX.floorOpen && p.y > FX.H - p.r) { p.y = FX.H - p.r; if (p.vy > 0) p.vy = -p.vy * 0.35; p.vx *= 1 - 4 * h; p.spin = p.vx / p.r; }
+    }
+    for (let i = 0; i < FX.pile.length; i++) for (let j = i + 1; j < FX.pile.length; j++) collideDyn(FX.pile[i], FX.pile[j], 0.3);
+    if (FX.ball) stepBall(h);
+  }
+  FX.pile = FX.pile.filter(p => p.y < FX.H + 120);
+  if (!FX.pile.length) FX.floorOpen = false;
+  // 7c. confetti + comic words
+  for (const c of FX.confetti) {
+    c.vy += 700 * dt; c.vx *= 1 - 1.6 * dt; c.vy *= 1 - 1.3 * dt;
+    c.x += (c.vx + Math.sin(c.ph += dt * 7) * 60) * dt; c.y += c.vy * dt; c.rot += c.vr * dt; c.life -= dt;
+  }
+  FX.confetti = FX.confetti.filter(c => c.life > 0 && c.y < FX.H + 30);
+  for (const p of FX.popups) p.t += dt;
+  FX.popups = FX.popups.filter(p => p.t < p.dur);
+  // 7d. screen shake (applied to the page, not the overlays)
+  if (FX.shake > 0.3) {
+    appEl.style.translate = `${rand(-1, 1) * FX.shake}px ${rand(-1, 1) * FX.shake}px`;
+    FX.shake *= Math.exp(-dt * 9);
+  } else if (FX.shake) { FX.shake = 0; appEl.style.translate = ''; }
+}
+
+function drawFX() {
+  const { ctx, W, H, dpr } = FX;
+  const busy = FX.incoming.length || FX.pile.length || FX.confetti.length || FX.popups.length || FX.ball;
+  if (!busy) { if (FX.wasDrawn) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, FX.cv.width, FX.cv.height); FX.wasDrawn = false; } return; }
+  FX.wasDrawn = true;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  for (const c of FX.confetti) {
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.scale(1, Math.abs(Math.cos(c.ph)) * 0.8 + 0.2);
+    ctx.globalAlpha = Math.min(1, c.life); ctx.fillStyle = c.color; ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h); ctx.restore();
+  }
+  for (const p of FX.incoming) drawDigitBall(ctx, p.x, p.y, p.r, p.d, p.angle, DIGIT_COLORS[p.d]);
+  for (const p of FX.pile) drawDigitBall(ctx, p.x, p.y, p.r, p.d, p.angle, DIGIT_COLORS[p.d]);
+  if (FX.ball) drawBall(ctx, FX.ball);
+  for (const p of FX.popups) drawPopup(ctx, p);
+}
+function drawPopup(ctx, p) {
+  const k = p.t / p.dur;
+  const sc = k < 0.15 ? 0.3 + 0.95 * Math.sin((k / 0.15) * Math.PI * 0.6) / Math.sin(Math.PI * 0.6) : 1 + (k - 0.15) * 0.1;
+  const a = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(p.x, p.y - k * 40); ctx.rotate(p.rot); ctx.scale(sc, sc);
+  ctx.font = `900 ${p.size}px ${FUN_FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(p.text).width, rx = tw / 2 + p.size * 0.55, ry = p.size * 0.95;
+  const m = rx * sc * 1.1 + 6;
+  ctx.setTransform(FX.dpr, 0, 0, FX.dpr, 0, 0); ctx.translate(m * 2 < FX.W ? clamp(p.x, m, FX.W - m) : FX.W / 2, p.y - k * 40); ctx.rotate(p.rot); ctx.scale(sc, sc);
+  ctx.beginPath();
+  const spikes = 14;
+  for (let i = 0; i <= spikes * 2; i++) {
+    const ang = (i / (spikes * 2)) * TAU, rr = i % 2 ? 0.78 : 1.05;
+    const x = Math.cos(ang) * rx * rr, y = Math.sin(ang) * ry * rr;
+    i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.fillStyle = '#fff27a'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.lineJoin = 'round'; ctx.stroke();
+  ctx.lineWidth = p.size * 0.16; ctx.strokeStyle = INK; ctx.strokeText(p.text, 0, 2);
+  ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 2);
+  ctx.restore();
+}
+
+/* =====================================================================
+   8. ACT 1 LOGIC: keypad, landing, the call, clear
+   ===================================================================== */
+const slotEls = [], keyEls = [];
+(function buildForm() {
+  const slots = $('#slots'), keypad = $('#keypad');
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement('div');
+    s.className = 'slot'; s.dataset.n = i + 1;
+    s.dataset.tip = pick(['Slot ' + (i + 1) + '. Occupied by fate.', 'Slot ' + (i + 1) + '. Digits welcome. Order not guaranteed.', 'Slot ' + (i + 1) + '. Reserved for whoever lands first.']);
+    slots.appendChild(s); slotEls.push(s);
+  }
+  for (const d of [1, 2, 3, 4, 5, 6, 7, 8, 9, 0]) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'key'; b.textContent = d;
+    b.style.setProperty('--kc', DIGIT_COLORS[d]); b.style.setProperty('--kcd', DIGIT_DARK[d]);
+    b.dataset.tip = pick([`Inserts a ${d}. Somewhere. Eventually.`, `A premium ${d}. Gravity-delivered.`, `${d}: hand-picked, randomly placed.`]);
+    b.setAttribute('aria-label', 'Digit ' + d);
+    b.addEventListener('click', () => pressDigit(d, b));
+    keypad.appendChild(b); keyEls[d] = b;
+  }
+})();
+
+function pressDigit(d, btn) {
+  SFX.quack();
+  btn.classList.remove('squish'); void btn.offsetWidth; btn.classList.add('squish');
+  if (S.callBusy) { duckAt(btn, 'shh. on a call.'); return; }
+  if (Board.slots.filter(Boolean).length + inFlightCount() >= 10) { duckAt(btn, 'board full. please hold.'); return; }
+  duckAt(btn);
+  spawnIncoming(d);
+  setChaos(1); dropSanity(1);
+}
+
+const OUTCOMES = [
+  ['a confused pigeon', 'It said "coo?" and hung up.'],
+  ['your own voicemail from 2009', 'It sounds tired.'],
+  ['a fax machine having a breakdown', 'It screamed in modem.'],
+  ['Gary. Nobody knows Gary.', 'Gary says hi.'],
+  ['the duck. The duck has questions.', 'Mostly about bread.'],
+  ['Customer Support for the Moon', 'Estimated wait: 384,400 km.'],
+  ['a lighthouse keeper in 1987', 'He is very busy.'],
+  ['a pizza place that only sells regret', 'Toppings: extra regret.'],
+];
+const nextOutcome = picker(OUTCOMES);
+
+function onNumberComplete() {
+  if (S.callBusy) return;
+  S.callBusy = true;
+  const digits = Board.slots.map(b => b.d);
+  const panel = $('#callPanel'), title = $('#callTitle'), num = $('#callNumber'), sub = $('#callSub'), acts = $('#callActions');
+  setChaos(2); setSanity(Math.min(S.sanityTarget, 62));
+  const rect = Board.cv.getBoundingClientRect();
+  confetti(rect.left + rect.width / 2, rect.top + rect.height * 0.5, 140, 1.1);
+  shake(6); SFX.fanfare();
+  panel.hidden = false; acts.hidden = true; num.textContent = ''; sub.textContent = '';
+  title.textContent = 'Number accepted!'; title.classList.remove('stamp'); void title.offsetWidth; title.classList.add('stamp');
+  later(() => {
+    title.textContent = 'Calling...';
+    speak('Number accepted. Calling. ' + digits.join(', '), { rate: 0.95 });
+    digits.forEach((d, i) => later(() => {
+      num.textContent = digits.slice(0, i + 1).join('-') + (i < 9 ? '-...' : '');
+      SFX.dtmf(d);
+    }, 350 + i * 330));
+    later(() => {
+      sub.innerHTML = 'Ringing <span class="ringing">&#9742;</span> ring... ring...';
+      SFX.ring();
+    }, 350 + 10 * 330 + 300);
+    later(() => {
+      const [who, quip] = nextOutcome();
+      title.textContent = 'Connected to:'; title.classList.remove('stamp'); void title.offsetWidth; title.classList.add('stamp');
+      sub.textContent = who + ' \u2014 ' + quip;
+      speak('Connected to ' + who, { rate: 0.95 });
+      acts.hidden = false; SFX.quack(1.2);
+      popup(rect.left + rect.width / 2, rect.top + rect.height * 0.3, 'CONNECTED?!', { size: 40 });
+    }, 350 + 10 * 330 + 300 + 2900);
+  }, 1300);
+}
+
+function hideCallPanel() { $('#callPanel').hidden = true; S.callBusy = false; S.holdPlaying = false; }
+/** Clear: every digit drops off the board into a pile at the bottom of the screen, then gets flushed. */
+function clearDigits(withPile = true) {
+  const rect = Board.cv.getBoundingClientRect();
+  if (withPile) {
+    for (const b of Board.bodies) FX.pile.push({ d: b.d, x: rect.left + b.x, y: rect.top + b.y, vx: rand(-350, 350), vy: rand(-700, -200), r: b.r, m: 1, angle: b.angle, spin: rand(-8, 8) });
+    for (const p of FX.incoming) FX.pile.push({ ...p, m: 1 });
+  }
+  Board.bodies = []; FX.incoming = [];
+  Board.slots.fill(null);
+  slotEls.forEach(el => { el.textContent = ''; el.classList.remove('filled', 'drop'); void el.offsetWidth; el.classList.add('drop'); el.style.color = ''; });
+  hideCallPanel(); stopSpeech();
+  if (withPile && FX.pile.length) {
+    FX.floorOpen = false; const tok = ++FX.pileToken;
+    SFX.slide(0.5, true);
+    later(() => { if (tok !== FX.pileToken) return; FX.floorOpen = true; SFX.flush(); popup(FX.W / 2, FX.H - 120, 'FLUSHHH', { size: 40, color: '#3a86ff' }); }, 2600);
+  }
+}
+
+$('#clearBtn').addEventListener('click', e => { SFX.quack(); duckAt(e.currentTarget, pick(['bye digits!', 'into the void', 'wheee'])); clearDigits(true); dropSanity(2); });
+$('#redialBtn').addEventListener('click', e => { SFX.quack(); clearDigits(true); });
+$('#holdBtn').addEventListener('click', () => {
+  if (S.holdPlaying) return; S.holdPlaying = true;
+  SFX.holdMusic(); $('#callSub').textContent = 'Your call is important to the ducks. Please hold.';
+  later(() => { S.holdPlaying = false; }, 4200);
+});
+$('#continueBtn').addEventListener('click', e => { SFX.quack(); duckAt(e.currentTarget, 'please hold.'); toast(pick(['Please hold.', 'Still holding. Thank you for holding.', 'Continue is on hold.', 'Your patience has been noted. By a duck.'])); });
+$('#logoDuck').addEventListener('click', e => { SFX.quack(1.2); duckAt(e.currentTarget); });
+$('#testQuackBtn').addEventListener('click', e => { SFX.quack(); duckAt(e.currentTarget, nextReaction()); });
+
+/* =====================================================================
+   9. ACT 2: THE VOLUME SLIDER FROM HELL
+   ===================================================================== */
+const track = $('#track'), knob = $('#knob'), fill = $('#fill'), volPct = $('#volPct'), volHint = $('#volHint'), sticky = $('#sticky');
+const VOL = { pct: 50, dragging: false, escaped: false, hist: [], lastBucket: 5 };
+function setVolume(pct) {
+  VOL.pct = clamp(pct, 0, 100);
+  const k = VOL.pct / 100;
+  knob.style.left = `calc(19px + (100% - 38px) * ${k})`;
+  fill.style.width = `calc(19px + (100% - 38px) * ${k})`;
+  volPct.textContent = Math.round(VOL.pct) + '%';
+  knob.setAttribute('aria-valuenow', Math.round(VOL.pct));
+  knob.classList.toggle('tremble', VOL.pct > 86);
+  volHint.textContent = VOL.pct < 70 ? 'Drag me. Responsibly.' : VOL.pct < 86 ? 'Getting loud...' : VOL.pct < 96 ? 'Please don\u2019t.' : 'I SAID PLEASE DON\u2019T.';
+  setSfxLevel(0.05 + 0.95 * k);
+  const bucket = Math.floor(VOL.pct / 10);
+  if (bucket !== VOL.lastBucket) { VOL.lastBucket = bucket; if (VOL.dragging) SFX.quack(0.8); }
+  if (VOL.pct >= 100 && !VOL.escaped) escapeBall();
+}
+function pctFromX(x) { const r = track.getBoundingClientRect(); return (x - r.left - 19) / Math.max(1, r.width - 38) * 100; }
+track.addEventListener('pointerdown', e => {
+  if (VOL.escaped) { SFX.nope(); toast('The volume knob is out. Please try again later.'); return; }
+  e.preventDefault();
+  try { track.setPointerCapture(e.pointerId); } catch (err) {}
+  VOL.dragging = true; VOL.hist = [{ x: e.clientX, y: e.clientY, t: now() }];
+  setVolume(pctFromX(e.clientX));
+});
+track.addEventListener('pointermove', e => {
+  if (!VOL.dragging || VOL.escaped) return;
+  VOL.hist.push({ x: e.clientX, y: e.clientY, t: now() }); if (VOL.hist.length > 8) VOL.hist.shift();
+  setVolume(pctFromX(e.clientX));
+});
+const endDrag = () => { if (VOL.dragging && !VOL.escaped) SFX.quack(); VOL.dragging = false; };
+track.addEventListener('pointerup', endDrag);
+track.addEventListener('pointercancel', endDrag);
+knob.addEventListener('keydown', e => {
+  if (VOL.escaped) return;
+  const step = { ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5, End: 100, Home: -100 }[e.key];
+  if (step) { e.preventDefault(); setVolume(VOL.pct + step); SFX.quack(0.8); }
+});
+
+/** The knob reaches 100% and breaks free. */
+function escapeBall() {
+  if (VOL.escaped) return;
+  VOL.escaped = true; VOL.dragging = false;
+  const kr = knob.getBoundingClientRect();
+  const x = kr.left + kr.width / 2, y = kr.top + kr.height / 2;
+  let dragVx = 0;
+  if (VOL.hist.length > 1) { const a = VOL.hist[0], b = VOL.hist[VOL.hist.length - 1]; dragVx = (b.x - a.x) / Math.max(0.016, (b.t - a.t) / 1000); }
+  knob.classList.add('gone'); knob.classList.remove('tremble');
+  fill.style.width = '0px';
+  volPct.textContent = '\u00af\\_(\u30c4)_/\u00af';
+  volHint.textContent = 'The volume is now 100%. Forever.';
+  sticky.classList.add('show');
+  setSfxLevel(1);
+  FX.ball = { x, y, vx: clamp(dragVx * 1.2, -1500, 1500) + rand(-300, 500), vy: -rand(1300, 1750), r: clamp(kr.width * 0.75, 24, 36), m: 3, spin: rand(-10, 10), angle: 0, squash: 0, squashV: 0, squashAng: 0, grabbed: false, born: now(), hist: [], state: 'free' };
+  SFX.boing(1); SFX.yelp(0.7);
+  popup(x, y - 60, "I'M FREE!", { size: 50, dur: 1.3 });
+  confetti(x, y, 100, 1); shake(14);
+  setChaos(3); setSanity(Math.min(S.sanityTarget, 31));
+  $('#a3Status').textContent = 'Unlocking...'; $('#a3Status').classList.add('hot');
+  $('#a3Hint').textContent = 'Please hold still. Especially your nose.';
+  later(openAct3, CONFIG.act3DelayMs);
+  later(showReturnBtn, CONFIG.returnBallDelayMs);
+}
+
+/** One physics substep for the escaped ball. Bounces forever with slight energy retention. */
+function stepBall(h) {
+  const b = FX.ball, W = FX.W, H = FX.H, top = FX.topY;
+  if (b.state === 'returning') {
+    b.retT += h / 0.7; const k = Math.min(1, b.retT), e = k * k * (3 - 2 * k);
+    const tr = track.getBoundingClientRect(), tx = tr.left + 19 + (tr.width - 38) * 0.6, ty = tr.top + tr.height / 2;
+    b.x = lerp(b.rx0, tx, e); b.y = lerp(b.ry0, ty, e) - Math.sin(k * Math.PI) * 160; b.angle += 15 * h;
+    if (k >= 1) finishReturn();
+    return;
+  }
+  b.squashV += (-420 * b.squash - 13 * b.squashV) * h; b.squash += b.squashV * h;   // jelly wobble spring
+  if (b.grabbed) return;
+  b.vy += FX.g * h; b.vx *= 1 - 0.03 * h;
+  b.x += b.vx * h; b.y += b.vy * h; b.angle += b.spin * h; b.spin *= 1 - 0.25 * h;
+  const e = 0.86;
+  if (b.x - b.r < 0) { b.x = b.r; hitWall(b, -b.vx, 1, 0, e); }
+  if (b.x + b.r > W) { b.x = W - b.r; hitWall(b, b.vx, -1, 0, e); }
+  if (b.y - b.r < top) { b.y = top + b.r; hitWall(b, -b.vy, 0, 1, e); }
+  if (b.y + b.r > H) {
+    b.y = H - b.r; hitWall(b, b.vy, 0, -1, e);
+    const minUp = Math.sqrt(2 * FX.g * (H - top) * 0.45);    // never lose the will to bounce
+    if (-b.vy < minUp) b.vy = -minUp * rand(1, 1.15);
+    if (Math.abs(b.vx) < 160) b.vx = (Math.random() < 0.5 ? -1 : 1) * rand(220, 480);
+  }
+  for (const p of FX.pile) collideDyn(b, p, 0.6);
+}
+function hitWall(b, impact, nx, ny, e) {
+  if (impact <= 0) return;
+  const tvel = ny ? b.vx : b.vy;
+  if (nx) b.vx = nx * impact * e; else b.vy = ny * impact * e;
+  b.spin = lerp(b.spin, (nx ? -tvel * nx : tvel * ny) / b.r, 0.5);
+  if (impact < 90) return;
+  b.squash = clamp(impact / 2600, 0.12, 0.42); b.squashV = 0; b.squashAng = Math.atan2(ny, nx);
+  const t = now();
+  if (t - FX.lastHitSnd > 70) {
+    FX.lastHitSnd = t;
+    const p = clamp(impact / 2400, 0, 1);
+    const [snd, word] = HIT_BANK[FX.hitIdx++ % HIT_BANK.length];
+    SFX[snd](p);
+    const big = impact > 1500;
+    popup(b.x + nx * 70, b.y + ny * 70, big && Math.random() < 0.35 ? 'OOF!' : word, { size: 34 + 22 * p });
+    if (big) shake(clamp(impact / 160, 4, 16));
+  }
+}
+function drawBall(ctx, b) {
+  // squash-and-stretch along the last impact normal
+  const s = clamp(b.squash, -0.3, 0.45);
+  ctx.save(); ctx.translate(b.x, b.y);
+  ctx.rotate(b.squashAng); ctx.scale(1 - s, 1 + s * 0.85); ctx.rotate(-b.squashAng + b.angle);
+  const r = b.r;
+  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.4, r * 0.1, 0, 0, r);
+  g.addColorStop(0, '#ffd1dc'); g.addColorStop(0.35, '#ff5c84'); g.addColorStop(1, '#c8174a');
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = INK; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, r * 0.98, -0.3, 0.3); ctx.lineWidth = r * 0.18; ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.stroke();
+  // googly eyes that look where it's going
+  const sp = Math.hypot(b.vx, b.vy) || 1, lx = b.vx / sp, ly = b.vy / sp;
+  const ca = Math.cos(-b.angle), sa = Math.sin(-b.angle), llx = lx * ca - ly * sa, lly = lx * sa + ly * ca;
+  for (const ex of [-0.36, 0.36]) {
+    ctx.beginPath(); ctx.arc(ex * r, -0.18 * r, r * 0.27, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = INK; ctx.stroke();
+    ctx.beginPath(); ctx.arc(ex * r + llx * r * 0.11, -0.18 * r + lly * r * 0.11, r * 0.12, 0, TAU); ctx.fillStyle = INK; ctx.fill();
+  }
+  ctx.beginPath();
+  if (sp > 900) ctx.ellipse(0, r * 0.38, r * 0.16, r * 0.2, 0, 0, TAU); else ctx.arc(0, r * 0.22, r * 0.3, 0.2, Math.PI - 0.2);
+  ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.stroke(); if (sp > 900) { ctx.fillStyle = '#7a0f2e'; ctx.fill(); }
+  ctx.restore();
+}
+
+// Grab / flick the ball (canvas is click-through, so hit-test manually)
+let grabSuppressClick = 0;
+window.addEventListener('pointerdown', e => {
+  const b = FX.ball;
+  if (!b || b.state !== 'free') return;
+  if (Math.hypot(e.clientX - b.x, e.clientY - b.y) > b.r * 1.6) return;
+  e.preventDefault(); e.stopPropagation();
+  b.grabbed = true; b.hist = [{ x: e.clientX, y: e.clientY, t: now() }];
+  document.documentElement.style.cursor = 'grabbing';
+  SFX.squeak(0.4);
+}, { capture: true });
+window.addEventListener('pointermove', e => {
+  const b = FX.ball; if (!b) return;
+  if (b.grabbed) {
+    b.x = clamp(e.clientX, b.r, FX.W - b.r); b.y = clamp(e.clientY, FX.topY + b.r, FX.H - b.r);
+    b.hist.push({ x: e.clientX, y: e.clientY, t: now() }); if (b.hist.length > 10) b.hist.shift();
+  } else {
+    const near = Math.hypot(e.clientX - b.x, e.clientY - b.y) < b.r * 1.6;
+    document.documentElement.style.cursor = near ? 'grab' : '';
+  }
+}, { passive: true });
+window.addEventListener('pointerup', e => {
+  const b = FX.ball; if (!b || !b.grabbed) return;
+  b.grabbed = false; grabSuppressClick = now(); document.documentElement.style.cursor = '';
+  const h = b.hist.filter(p => now() - p.t < 120);
+  let vx = 0, vy = 0;
+  if (h.length > 1) { const a = h[0], z = h[h.length - 1], dt = Math.max(0.016, (z.t - a.t) / 1000); vx = (z.x - a.x) / dt; vy = (z.y - a.y) / dt; }
+  const sp = Math.hypot(vx, vy);
+  if (sp < 150) { vx = rand(-700, 700); vy = -rand(1300, 1800); popup(b.x, b.y - 60, pick(['WHEE!', 'BOING?', 'AGAIN!']), { size: 38 }); SFX.boing(0.6); }
+  else { const k = Math.min(1, 4000 / sp); vx *= k; vy *= k; if (sp > 1500) popup(b.x, b.y - 60, 'YEET!', { size: 46 }); }
+  b.vx = vx; b.vy = vy; b.spin = rand(-14, 14);
+}, true);
+window.addEventListener('click', e => { if (now() - grabSuppressClick < 250) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+// The "hidden" return button, which the ball sometimes dodges
+const returnBtn = $('#returnBall');
+function placeReturnBtn(x, y) { returnBtn.style.left = clamp(x, 8, innerWidth - 130) + 'px'; returnBtn.style.top = clamp(y, FX.topY + 8, innerHeight - 46) + 'px'; }
+function showReturnBtn() { if (!FX.ball) return; S.dodges = 0; placeReturnBtn(14, innerHeight - 50); returnBtn.hidden = false; }
+returnBtn.addEventListener('click', () => {
+  const b = FX.ball; if (!b || b.state !== 'free') { returnBtn.hidden = true; return; }
+  const r = returnBtn.getBoundingClientRect(), bx = r.left + r.width / 2, by = r.top;
+  const dodge = S.dodges < 1 || (S.dodges < 3 && Math.random() < 0.5);
+  if (dodge) {
+    S.dodges++;
+    b.vx = (b.x < bx ? -1 : 1) * rand(1300, 1900); b.vy = -rand(1300, 1700);
+    popup(bx, by - 30, pick(['NOPE!', 'DODGE!', 'NICE TRY!']), { size: 40 });
+    SFX.slide(0.7); toast(pick(['The ball declined.', 'Ball is on a break.', 'Ball says: no.', 'The ball has unionized.']));
+    placeReturnBtn(rand(20, innerWidth - 140), rand(FX.topY + 40, innerHeight - 60));
+  } else {
+    Object.assign(b, { state: 'returning', retT: 0, rx0: b.x, ry0: b.y });
+    returnBtn.hidden = true; SFX.slide(0.6, true);
+  }
+});
+function finishReturn() {
+  FX.ball = null; VOL.escaped = false;
+  knob.classList.remove('gone'); sticky.classList.remove('show');
+  setVolume(60); SFX.plink();
+  popup(FX.W / 2, FX.H / 2, 'BALL RETURNED', { size: 40, color: '#0ead69' });
+  toast('Ball returned. For now.');
+}
+
+/* =====================================================================
+   10. ACT 3: THE NOSTRIL FILTER
+   ===================================================================== */
+const modal = $('#modal'), permStep = $('#permStep'), camStep = $('#camStep'), camMsg = $('#camMsg'), scanText = $('#scanText'), captionsEl = $('#captions');
+const A3 = {
+  open: false, step: 'idle', token: 0, stream: null, camOK: false, forceAvatar: false, avatarReason: '',
+  video: $('#camVideo'), cv: $('#camCanvas'), ctx: null, CW: 640, CH: 480,
+  landmarker: null, libState: 'idle', libPromise: null, lastVideoTime: -1,
+  mode: 'wait', t0: 0, camStart: 0, lastFace: 0, phase: 'scan', phaseT: 0, dripT0: 0, scanIdx: 0, lastScanSwap: 0,
+  target: null, cur: null, prevMid: null, headV: { x: 0, y: 0 },
+  nostrils: [], drops: [], splats: [], pool: { h: new Float32Array(64), v: new Float32Array(64) }, bubble: null, nextBubble: 0, lastBloop: 0,
+};
+A3.ctx = A3.cv.getContext('2d');
+
+/* ---------- 10a. Face library loader: CDN -> local -> avatar fallback ---------- */
+function withTimeout(p, ms) { return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]); }
+async function tryLoadFaceLib(src) {
+  const abs = u => new URL(u, location.href).href;
+  const vision = await import(abs(src.bundle));
+  const fileset = await vision.FilesetResolver.forVisionTasks(abs(src.wasm));
+  const make = delegate => vision.FaceLandmarker.createFromOptions(fileset, {
+    baseOptions: { modelAssetPath: abs(src.model), delegate },
+    runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: false, outputFacialTransformationMatrixes: false,
+  });
+  try { return await make('GPU'); } catch (e) { return await make('CPU'); }
+}
+function loadFaceLib() {
+  if (A3.libPromise) return A3.libPromise;
+  const pref = PARAMS.get('face');
+  let order = pref === 'off' ? [] : pref === 'local' ? ['local'] : pref === 'cdn' ? ['cdn'] : ['cdn', 'local'];
+  if (location.protocol === 'file:') order = order.filter(n => n !== 'local');   // ES modules can't load from file://
+  if (navigator.onLine === false) order = order.filter(n => n !== 'cdn');
+  A3.libState = 'loading';
+  A3.libPromise = (async () => {
+    for (const name of order) {
+      try {
+        A3.landmarker = await withTimeout(tryLoadFaceLib(CONFIG.faceLib[name]), CONFIG.faceLib.timeoutMs);
+        A3.libState = 'ready'; return A3.landmarker;
+      } catch (e) { console.info('[please-hold] face library (' + name + ') unavailable, trying next fallback.'); }
+    }
+    A3.libState = 'failed';
+    if (A3.open && A3.step === 'cam') toAvatar('The face library is offline. Like us.');
+    return null;
+  })();
+  return A3.libPromise;
+}
+
+/* ---------- 10b. Open / camera / close ---------- */
+function openAct3() {
+  if (A3.open) return;
+  A3.open = true; const tok = ++A3.token;
+  A3.step = 'perm';
+  modal.hidden = false; requestAnimationFrame(() => modal.classList.add('show'));
+  permStep.hidden = false; camStep.hidden = true;
+  $('#a3Status').textContent = 'In progress'; $('#a3Status').classList.add('hot');
+  SFX.alarm();
+  loadFaceLib();
+  let n = 6;
+  const cd = $('#permCountdown');
+  const tickDown = () => {
+    if (tok !== A3.token || A3.step !== 'perm') return;
+    cd.textContent = n > 0 ? `Agreeing on your behalf in ${n}...` : 'Agreed. You\u2019re welcome.';
+    if (n <= 0) { startCamera(); return; }
+    n--; later(tickDown, 1000);
+  };
+  tickDown();
+}
+async function startCamera() {
+  if (!A3.open || A3.step === 'cam') return;
+  A3.step = 'cam'; const tok = A3.token;
+  permStep.hidden = true; camStep.hidden = false;
+  resetSlime();
+  Object.assign(A3, { mode: 'wait', phase: 'scan', t0: now(), camStart: now(), lastFace: 0, camOK: false, forceAvatar: false, avatarReason: '', target: null, cur: null, prevMid: null });
+  camMsg.hidden = true; captionsEl.innerHTML = '';
+  setChaos(4); setSanity(Math.min(S.sanityTarget, 9)); SFX.sniff();
+  if (A3.libState === 'failed') { toAvatar('The face library is offline. Like us.'); return; }
+  loadFaceLib();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toAvatar('This browser has no camera API. Classic.'); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false });
+    if (tok !== A3.token || !A3.open || A3.forceAvatar) { stream.getTracks().forEach(t => t.stop()); return; }
+    A3.stream = stream; A3.video.srcObject = stream;
+    try { await A3.video.play(); } catch (e) {}
+    A3.camOK = true; A3.camStart = now();
+  } catch (e) {
+    if (tok === A3.token) toAvatar('Camera said no. We respect that. Mostly.');
+  }
+}
+function stopStream() {
+  if (A3.stream) { A3.stream.getTracks().forEach(t => t.stop()); A3.stream = null; }
+  try { A3.video.srcObject = null; } catch (e) {}
+  A3.camOK = false;
+}
+function toAvatar(reason) {
+  A3.forceAvatar = true; A3.avatarReason = reason;
+  stopStream();
+}
+function showAvatarMsg(reason) {
+  $('#camMsgSub').textContent = reason;
+  camMsg.hidden = false;
+  const tok = A3.token;
+  later(() => { if (tok === A3.token && A3.mode === 'avatar') camMsg.hidden = true; }, 4500);
+}
+function closeAct3() {
+  if (!A3.open) return;
+  A3.open = false; A3.token++; A3.step = 'idle';
+  stopStream(); modal.classList.remove('show'); modal.hidden = true;
+  captionsEl.innerHTML = ''; resetSlime();
+  $('#a3Status').textContent = 'Verified (allegedly)'; $('#a3Status').classList.remove('hot');
+  $('#a3Hint').textContent = 'Your nostrils are on file. Not really. We are too lazy.';
+  $('#a3Btn').hidden = false;
+}
+$('#allowBtn').addEventListener('click', () => { SFX.quack(); startCamera(); });
+$('#allow2Btn').addEventListener('click', () => { SFX.quack(0.7); toast('Sadness noted.'); startCamera(); });
+$('#closeCamBtn').addEventListener('click', () => { SFX.sniff(); closeAct3(); });
+$('#a3Btn').addEventListener('click', () => { SFX.quack(); openAct3(); });
+
+/* ---------- 10c. Landmarks -> nostrils (mirrored, cover-fitted, smoothed) ---------- */
+// MediaPipe Face Mesh indices: 1 = nose tip, 2 = subnasale (between nostrils),
+// 98 / 327 = alar base (outer bottom corners of each nostril), 33 / 263 = outer eye corners.
+// A nostril opening sits between the alar base and the subnasale, nudged toward the tip.
+function coverFit(vw, vh) {
+  const s = Math.max(A3.CW / vw, A3.CH / vh), dw = vw * s, dh = vh * s;
+  return { s, dw, dh, ox: (A3.CW - dw) / 2, oy: (A3.CH - dh) / 2 };
+}
+function faceFromLandmarks(lm, fit) {
+  const P = i => ({ x: A3.CW - (fit.ox + lm[i].x * fit.dw), y: fit.oy + lm[i].y * fit.dh });  // mirrored
+  const tip = P(1), sub = P(2), alarA = P(98), alarB = P(327), eyeA = P(263), eyeB = P(33);
+  const nostril = alar => {
+    const x = lerp(alar.x, sub.x, 0.42), y = lerp(alar.y, sub.y, 0.42);
+    return { x: lerp(x, tip.x, 0.12), y: lerp(y, tip.y, 0.12) };
+  };
+  return { a: nostril(alarA), b: nostril(alarB), roll: Math.atan2(eyeB.y - eyeA.y, eyeB.x - eyeA.x), scale: Math.hypot(eyeB.x - eyeA.x, eyeB.y - eyeA.y) };
+}
+function detectFace() {
+  const v = A3.video;
+  if (!A3.landmarker || !A3.camOK || v.readyState < 2 || !v.videoWidth) return;
+  if (v.currentTime === A3.lastVideoTime) return;
+  A3.lastVideoTime = v.currentTime;
+  let res = null;
+  try { res = A3.landmarker.detectForVideo(v, now()); } catch (e) { return; }
+  const lm = res && res.faceLandmarks && res.faceLandmarks[0];
+  if (!lm || lm.length < 330) return;
+  A3.target = faceFromLandmarks(lm, coverFit(v.videoWidth, v.videoHeight));
+  A3.lastFace = now();
+}
+function smoothFace(dt) {
+  const T = A3.target; if (!T) return;
+  if (!A3.cur) { A3.cur = { a: { ...T.a }, b: { ...T.b }, roll: T.roll, scale: T.scale }; A3.prevMid = { x: (T.a.x + T.b.x) / 2, y: (T.a.y + T.b.y) / 2 }; return; }
+  const C = A3.cur, k = 1 - Math.exp(-dt * 14);   // low-pass filter
+  for (const n of ['a', 'b']) { C[n].x += (T[n].x - C[n].x) * k; C[n].y += (T[n].y - C[n].y) * k; }
+  let dr = T.roll - C.roll; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); C.roll += dr * k;
+  C.scale += (T.scale - C.scale) * k;
+  const mid = { x: (C.a.x + C.b.x) / 2, y: (C.a.y + C.b.y) / 2 };
+  const hv = { x: (mid.x - A3.prevMid.x) / Math.max(dt, 1e-3), y: (mid.y - A3.prevMid.y) / Math.max(dt, 1e-3) };
+  A3.headV.x = lerp(A3.headV.x, hv.x, 0.3); A3.headV.y = lerp(A3.headV.y, hv.y, 0.3);
+  A3.prevMid = mid;
+}
+
+/* ---------- 10d. Stock face (fallback avatar) ---------- */
+function drawAvatar(ctx, t) {
+  const { CW, CH } = A3;
+  const g = ctx.createLinearGradient(0, 0, CW, CH); g.addColorStop(0, '#7ee8f2'); g.addColorStop(1, '#ffd1ec');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, CW, CH);
+  ctx.save(); ctx.globalAlpha = 0.25; ctx.fillStyle = '#fff';
+  for (let i = -2; i < 14; i++) { ctx.beginPath(); ctx.moveTo(i * 60 + (t * 30) % 60, 0); ctx.lineTo(i * 60 + 30 + (t * 30) % 60, 0); ctx.lineTo(i * 60 - 150 + (t * 30) % 60, CH); ctx.lineTo(i * 60 - 180 + (t * 30) % 60, CH); ctx.fill(); }
+  ctx.restore();
+  const cx = CW / 2 + Math.sin(t * 0.7) * CW * 0.09, cy = CH * 0.47 + Math.sin(t * 1.3) * 12;
+  const roll = Math.sin(t * 0.9) * 0.24, s = CH * 0.34 * (1 + Math.sin(t * 0.5) * 0.05);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(roll);
+  ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.lineJoin = 'round';
+  for (const ex of [-1, 1]) { ctx.beginPath(); ctx.ellipse(ex * s * 0.98, s * 0.05, s * 0.16, s * 0.24, 0, 0, TAU); ctx.fillStyle = '#ffc38a'; ctx.fill(); ctx.stroke(); }
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 1.08, 0, 0, TAU); ctx.fillStyle = '#ffcf9e'; ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-s * 0.3, -s * 1.0); ctx.quadraticCurveTo(-s * 0.1, -s * 1.45, 0, -s * 1.02); ctx.quadraticCurveTo(s * 0.15, -s * 1.5, s * 0.32, -s * 0.98); ctx.fillStyle = '#6b3d1f'; ctx.fill(); ctx.stroke();
+  for (const ex of [-1, 1]) {
+    ctx.beginPath(); ctx.ellipse(ex * s * 0.55, s * 0.32, s * 0.16, s * 0.09, 0, 0, TAU); ctx.fillStyle = 'rgba(255,110,140,.45)'; ctx.fill();
+    ctx.beginPath(); ctx.arc(ex * s * 0.38, -s * 0.25, s * 0.2, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 5; ctx.stroke();
+    const px = Math.sin(t * 2.3 + ex) * s * 0.07, py = Math.cos(t * 1.7) * s * 0.05;
+    ctx.beginPath(); ctx.arc(ex * s * 0.38 + px, -s * 0.25 + py, s * 0.08, 0, TAU); ctx.fillStyle = INK; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(ex * s * 0.55, -s * 0.55); ctx.lineTo(ex * s * 0.2, -s * 0.5 - Math.sin(t * 3) * 6); ctx.lineWidth = 6; ctx.stroke();
+  }
+  // big nose
+  ctx.beginPath(); ctx.moveTo(-s * 0.08, -s * 0.18); ctx.quadraticCurveTo(-s * 0.3, s * 0.2, -s * 0.24, s * 0.3);
+  ctx.quadraticCurveTo(0, s * 0.42, s * 0.24, s * 0.3); ctx.quadraticCurveTo(s * 0.3, s * 0.2, s * 0.08, -s * 0.18);
+  ctx.fillStyle = '#ffb980'; ctx.fill(); ctx.lineWidth = 5; ctx.stroke();
+  for (const ex of [-1, 1]) { ctx.beginPath(); ctx.ellipse(ex * s * 0.1, s * 0.3, s * 0.06, s * 0.04, 0, 0, TAU); ctx.fillStyle = INK; ctx.fill(); }
+  ctx.beginPath(); ctx.moveTo(-s * 0.3, s * 0.66); ctx.quadraticCurveTo(-s * 0.15, s * 0.58, 0, s * 0.66); ctx.quadraticCurveTo(s * 0.15, s * 0.74, s * 0.3, s * 0.64); ctx.lineWidth = 5; ctx.stroke();
+  ctx.font = `900 ${Math.round(s * 0.13)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(31,36,51,.55)'; ctx.fillText('STOCK FACE\u2122', 0, s * 0.92);
+  ctx.restore();
+  const rot = (x, y) => ({ x: cx + x * Math.cos(roll) - y * Math.sin(roll), y: cy + x * Math.sin(roll) + y * Math.cos(roll) });
+  A3.target = { a: rot(-s * 0.1, s * 0.3), b: rot(s * 0.1, s * 0.3), roll, scale: s * 1.0 };
+}
+
+/* ---------- 10e. Cartoon slime: hanging drips, falling drops, splats, pool, snot bubble ---------- */
+const SLIME = { outline: '#2f3a10', shade: '#6f8a22', base: '#9dbb3a', hi: 'rgba(255,255,235,.8)' };
+function resetSlime() {
+  A3.nostrils = [0, 1].map(() => ({ len: 0, sway: 0, swayV: 0, var: Math.random(), rate: rand(0.75, 1.25) }));
+  A3.drops = []; A3.splats = []; A3.pool.h.fill(0); A3.pool.v.fill(0); A3.bubble = null; A3.nextBubble = now() + rand(5000, 8000);
+}
+resetSlime();
+function poolHeightAt(x) {
+  const N = A3.pool.h.length, f = clamp(x / A3.CW, 0, 1) * (N - 1), i = Math.floor(f), k = f - i;
+  return lerp(A3.pool.h[i], A3.pool.h[Math.min(N - 1, i + 1)], k);
+}
+function poolAdd(x, area, push) {
+  const N = A3.pool.h.length, colW = A3.CW / (N - 1), c = x / colW;
+  let wsum = 0; const ws = [];
+  for (let i = Math.floor(c) - 3; i <= Math.ceil(c) + 3; i++) { if (i < 0 || i >= N) continue; const w = Math.exp(-((i - c) ** 2) / 3); ws.push([i, w]); wsum += w; }
+  for (const [i, w] of ws) { A3.pool.h[i] += area * (w / wsum) / colW; A3.pool.v[i] -= push * w; }
+}
+function nostrilRadius() { return clamp((A3.cur ? A3.cur.scale : 120) * 0.085, 5, 28); }
+function updateSlime(dt) {
+  const C = A3.cur; if (!C) return;
+  const t = now(), nr = nostrilRadius(), I = clamp((t - A3.dripT0) / 30000, 0, 1), G = A3.CH * 1.8;
+  const headSpeed = Math.hypot(A3.headV.x, A3.headV.y);
+  [C.a, C.b].forEach((anc, k) => {
+    const n = A3.nostrils[k];
+    n.len += dt * nr * (1.1 + 5 * I) * n.rate;
+    const targetSway = clamp(-A3.headV.x * 0.05, -nr * 3, nr * 3);
+    n.swayV += ((targetSway - n.sway) * 80 - n.swayV * 8) * dt; n.sway += n.swayV * dt;
+    const maxLen = nr * (3.8 + n.var * 3.6);
+    if ((n.len > maxLen || (headSpeed > 900 && n.len > nr * 1.2)) && A3.drops.length < 160) {
+      const br = nr * (0.5 + 0.45 * clamp(n.len / (nr * 3.5), 0, 1)) * (1 + I * 0.3);
+      A3.drops.push({ x: anc.x + n.sway, y: anc.y + n.len, vx: n.swayV * 0.5 + A3.headV.x * 0.2, vy: nr * 6 + Math.max(0, A3.headV.y * 0.2), r: br });
+      if (Math.random() < 0.35 + I * 0.4) A3.drops.push({ x: anc.x + n.sway, y: anc.y + n.len - br, vx: rand(-20, 20), vy: nr * 3, r: br * 0.4, small: true });
+      n.len = nr * 0.3; n.var = Math.random(); n.rate = rand(0.75, 1.25);
+    }
+  });
+  for (const d of A3.drops) {
+    d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt;
+    const surf = A3.CH - poolHeightAt(d.x);
+    if (d.y + d.r * 0.5 > surf) {
+      d.dead = true;
+      poolAdd(d.x, Math.PI * d.r * d.r * 0.9, d.vy * 0.02);
+      if (!d.small) {
+        A3.splats.push({ x: d.x, y: surf, r: d.r, t: 0 });
+        for (let i = 0; i < randInt(3, 5) && A3.drops.length < 170; i++) A3.drops.push({ x: d.x, y: surf - d.r, vx: rand(-160, 160), vy: -rand(140, 280), r: d.r * rand(0.22, 0.38), small: true });
+        if (t - A3.lastBloop > 160) { A3.lastBloop = t; SFX.bloop(); }
+      }
+    }
+  }
+  A3.drops = A3.drops.filter(d => !d.dead && d.x > -50 && d.x < A3.CW + 50);
+  for (const s of A3.splats) s.t += dt;
+  A3.splats = A3.splats.filter(s => s.t < 0.25);
+  // pool: wave equation + diffusion, drains slowly once it gets too deep
+  const P = A3.pool, N = P.h.length, sub = 2, h = Math.min(dt, 1 / 30) / sub;
+  for (let s = 0; s < sub; s++) {
+    for (let i = 0; i < N; i++) { const l = P.h[Math.max(0, i - 1)], r = P.h[Math.min(N - 1, i + 1)]; P.v[i] += (l + r - 2 * P.h[i]) * 380 * h; P.v[i] *= 1 - 3 * h; }
+    for (let i = 0; i < N; i++) P.h[i] = Math.max(0, P.h[i] + P.v[i] * h);
+    for (let i = 0; i < N - 1; i++) { const f = (P.h[i] - P.h[i + 1]) * 12 * h; P.h[i] -= f; P.h[i + 1] += f; }
+  }
+  let avg = 0; for (let i = 0; i < N; i++) avg += P.h[i]; avg /= N;
+  if (avg > A3.CH * 0.2) for (let i = 0; i < N; i++) P.h[i] *= 1 - 0.08 * dt;
+  // snot bubble
+  if (!A3.bubble && t > A3.nextBubble) A3.bubble = { k: randInt(0, 1), r: nr * 0.4, max: nr * rand(2.2, 3.4), t: 0, dur: rand(1.4, 2.2) };
+  if (A3.bubble) {
+    const B = A3.bubble; B.t += dt;
+    B.r = lerp(nr * 0.4, B.max, Math.min(1, B.t / B.dur)) * (1 + Math.sin(B.t * 14) * 0.04);
+    if (B.t > B.dur) {
+      const c = bubbleCenter(B);
+      SFX.pop(0.8);
+      for (let i = 0; i < 8; i++) { const a = rand(0, TAU); A3.drops.push({ x: c.x + Math.cos(a) * B.r, y: c.y + Math.sin(a) * B.r, vx: Math.cos(a) * rand(80, 200), vy: Math.sin(a) * rand(80, 200) - 80, r: nr * rand(0.2, 0.35), small: true }); }
+      A3.bubble = null; A3.nextBubble = t + rand(6000, 10000);
+      A3.popText = { x: c.x, y: c.y, t: 0 };
+    }
+  }
+  if (A3.popText) { A3.popText.t += dt; if (A3.popText.t > 0.8) A3.popText = null; }
+}
+function bubbleCenter(B) {
+  const C = A3.cur, anc = B.k ? C.b : C.a, off = nostrilRadius() * 0.4 + B.r * 0.85;
+  return { x: anc.x - Math.sin(C.roll) * off, y: anc.y + Math.cos(C.roll) * off };
+}
+function drawSlime(ctx) {
+  const C = A3.cur; if (!C) return;
+  const nr = nostrilRadius(), blobs = [];
+  [C.a, C.b].forEach((anc, k) => {
+    const n = A3.nostrils[k];
+    blobs.push({ x: anc.x, y: anc.y + nr * 0.15, rx: nr * 0.85, ry: nr * 0.6, rot: C.roll });
+    if (n.len > nr * 0.3) {
+      const bulb = nr * (0.5 + 0.45 * clamp(n.len / (nr * 3.5), 0, 1));
+      const cnt = clamp(Math.ceil(n.len / (nr * 0.35)), 2, 16);
+      for (let j = 0; j <= cnt; j++) {
+        const t = j / cnt, rr = t < 0.7 ? lerp(nr * 0.62, nr * 0.36, t / 0.7) : lerp(nr * 0.36, bulb, (t - 0.7) / 0.3);
+        blobs.push({ x: anc.x + n.sway * t * t, y: anc.y + nr * 0.2 + n.len * t, rx: rr, ry: rr * 1.05, rot: 0 });
+      }
+    }
+  });
+  for (const d of A3.drops) {
+    const sp = Math.hypot(d.vx, d.vy), st = 1 + Math.min(0.9, sp / 700);
+    blobs.push({ x: d.x, y: d.y, rx: d.r / Math.sqrt(st), ry: d.r * st, rot: Math.atan2(d.vy, d.vx) - Math.PI / 2 });
+  }
+  for (const s of A3.splats) { const k = s.t / 0.25; blobs.push({ x: s.x, y: s.y, rx: s.r * (1.2 + k * 1.6), ry: s.r * 0.45 * (1 - k) + 1, rot: 0 }); }
+  // pool path
+  const P = A3.pool, N = P.h.length; let maxH = 0; for (let i = 0; i < N; i++) maxH = Math.max(maxH, P.h[i]);
+  let pool = null;
+  if (maxH > 0.5) {
+    pool = new Path2D(); const colW = A3.CW / (N - 1);
+    pool.moveTo(-10, A3.CH + 10); pool.lineTo(-10, A3.CH - P.h[0]);
+    for (let i = 0; i < N - 1; i++) { const x0 = i * colW, x1 = (i + 1) * colW; pool.quadraticCurveTo(x0, A3.CH - P.h[i], (x0 + x1) / 2, A3.CH - (P.h[i] + P.h[i + 1]) / 2); }
+    pool.lineTo(A3.CW + 10, A3.CH - P.h[N - 1]); pool.lineTo(A3.CW + 10, A3.CH + 10); pool.closePath();
+  }
+  const pass = (grow, dx, dy, scale, color) => {
+    ctx.beginPath();
+    for (const b of blobs) {
+      const rx = b.rx * scale + grow, ry = b.ry * scale + grow, x = b.x + dx * b.rx, y = b.y + dy * b.ry;
+      ctx.moveTo(x + rx * Math.cos(b.rot), y + rx * Math.sin(b.rot));
+      ctx.ellipse(x, y, Math.max(0.5, rx), Math.max(0.5, ry), b.rot, 0, TAU);
+    }
+    ctx.fillStyle = color; ctx.fill();
+  };
+  // 1) outline pass (everything slightly bigger, dark) -> merged cartoon outline
+  pass(3.5, 0, 0, 1, SLIME.outline);
+  if (pool) { ctx.fillStyle = SLIME.outline; ctx.fill(pool); ctx.lineWidth = 7; ctx.strokeStyle = SLIME.outline; ctx.stroke(pool); }
+  // 2) shade + 3) body color offset up-left -> glossy volume
+  pass(0, 0, 0, 1, SLIME.shade);
+  if (pool) { ctx.fillStyle = SLIME.shade; ctx.fill(pool); }
+  pass(0, -0.12, -0.16, 0.8, SLIME.base);
+  if (pool) { ctx.save(); ctx.translate(0, 6); ctx.fillStyle = SLIME.base; ctx.fill(pool); ctx.restore(); }
+  // 4) highlights
+  ctx.fillStyle = SLIME.hi; ctx.beginPath();
+  for (const b of blobs) {
+    if (b.rx < 2.5) continue;
+    const x = b.x - b.rx * 0.35, y = b.y - b.ry * 0.38, rx = b.rx * 0.28, ry = b.ry * 0.17;
+    ctx.moveTo(x + rx * Math.cos(-0.6), y + rx * Math.sin(-0.6)); ctx.ellipse(x, y, rx, ry, -0.6, 0, TAU);
+  }
+  ctx.fill();
+  if (pool) {
+    ctx.strokeStyle = SLIME.hi; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath();
+    const colW = A3.CW / (N - 1);
+    for (let i = 2; i < N - 2; i += 6) if (P.h[i] > 8) { const y = A3.CH - P.h[i] + 7; ctx.moveTo(i * colW, y); ctx.lineTo((i + 2) * colW, A3.CH - P.h[i + 2] + 7); }
+    ctx.stroke();
+  }
+  // snot bubble
+  if (A3.bubble) {
+    const c = bubbleCenter(A3.bubble), r = A3.bubble.r;
+    ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fillStyle = 'rgba(170,210,80,.38)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = SLIME.outline; ctx.stroke();
+    ctx.beginPath(); ctx.arc(c.x - r * 0.3, c.y - r * 0.3, r * 0.45, Math.PI * 1.05, Math.PI * 1.5); ctx.lineWidth = Math.max(2, r * 0.12); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.stroke();
+  }
+  if (A3.popText) {
+    const p = A3.popText; ctx.save(); ctx.globalAlpha = 1 - p.t / 0.8; ctx.font = `900 34px ${FUN_FONT}`; ctx.textAlign = 'center';
+    ctx.lineWidth = 6; ctx.strokeStyle = INK; ctx.strokeText('pop.', p.x + 30, p.y - 20 - p.t * 40); ctx.fillStyle = '#fff27a'; ctx.fillText('pop.', p.x + 30, p.y - 20 - p.t * 40); ctx.restore();
+  }
+}
+
+/* ---------- 10f. Scanner overlay, captions ---------- */
+const SCAN_TEXTS = ['Locating nostrils...', 'Measuring nostril diameter...', 'Calibrating sniff sensors...', 'Consulting the ducks...', 'Enhancing... enhancing...'];
+const CAPTIONS = ['Sinus update installed', 'Allergy season: premium plan', 'This is what your phone number costs', 'Drip rate: enterprise tier', 'Nostril verified. Dignity not found.', 'Please hold. Your nose is important to us.', 'Firmware: Snot 2.0 (beta)'];
+const CAP_COLORS = ['#ff2e6e', '#3a86ff', '#0ead69', '#8338ec', '#ff9f1c'];
+function startCaptions(tok) {
+  let i = 0;
+  const next = () => {
+    if (tok !== A3.token || !A3.open) return;
+    const el = document.createElement('div');
+    el.className = 'caption'; el.textContent = CAPTIONS[i % CAPTIONS.length];
+    el.style.background = CAP_COLORS[i % CAP_COLORS.length]; el.style.rotate = rand(-4, 4) + 'deg';
+    captionsEl.replaceChildren(el);
+    SFX.ding(); dropSanity(6); i++;
+    later(next, 4600);
+  };
+  later(next, 900);
+}
+function drawScanner(ctx, t, text) {
+  const { CW, CH } = A3, y = (Math.sin(t / 520) * 0.5 + 0.5) * CH;
+  const g = ctx.createLinearGradient(0, y - 40, 0, y + 40);
+  g.addColorStop(0, 'rgba(126,232,242,0)'); g.addColorStop(0.5, 'rgba(126,232,242,.6)'); g.addColorStop(1, 'rgba(126,232,242,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, y - 40, CW, 80);
+  ctx.strokeStyle = '#7ee8f2'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CW, y); ctx.stroke();
+  ctx.lineWidth = 6; ctx.strokeStyle = '#ffe066'; const m = 24, L = 50;
+  for (const [x, yy, sx, sy] of [[m, m, 1, 1], [CW - m, m, -1, 1], [m, CH - m, 1, -1], [CW - m, CH - m, -1, -1]]) { ctx.beginPath(); ctx.moveTo(x, yy + sy * L); ctx.lineTo(x, yy); ctx.lineTo(x + sx * L, yy); ctx.stroke(); }
+  if (text) { ctx.font = `900 26px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(text, CW / 2, CH / 2); }
+}
+function drawLock(ctx, t) {
+  const C = A3.cur; if (!C) return;
+  const nr = nostrilRadius(), k = clamp((t - A3.phaseT) / 400, 0, 1);
+  [C.a, C.b].forEach((p, i) => {
+    const R = lerp(nr * 8, nr * 2.2, k);
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(t / 400 * (i ? -1 : 1));
+    ctx.setLineDash([10, 8]); ctx.lineWidth = 4; ctx.strokeStyle = '#ff2e6e';
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(-R - 8, 0); ctx.lineTo(-R + 8, 0); ctx.moveTo(R - 8, 0); ctx.lineTo(R + 8, 0); ctx.stroke();
+    ctx.restore();
+    ctx.font = `900 18px ${FONT}`; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = INK; ctx.lineJoin = 'round';
+    const label = (i ? 'NOSTRIL B' : 'NOSTRIL A') + ' \u00b7 \u00d8 ' + (8 + (i ? 3.7 : 2.9)).toFixed(1) + 'mm';
+    const ly = p.y + (i ? 1 : -1) * (nr * 2.2 + 26);
+    ctx.strokeText(label, p.x, ly); ctx.fillStyle = '#ffe066'; ctx.fillText(label, p.x, ly);
+  });
+}
+function setScanText(s) { if (scanText.textContent !== s) scanText.textContent = s; }
+
+/* ---------- 10g. Per-frame Act 3 update ---------- */
+function updateAct3(dt) {
+  if (!A3.open || A3.step !== 'cam') return;
+  const t = now(), ctx = A3.ctx, { CW, CH } = A3;
+  detectFace();
+  // Decide what to show: live face, scanning, or the stock face fallback
+  const faceRecent = A3.camOK && A3.lastFace && t - A3.lastFace < CONFIG.noFaceTimeoutMs;
+  const prevMode = A3.mode;
+  if (faceRecent) A3.mode = 'live';
+  else if (A3.forceAvatar || A3.libState === 'failed' || t - Math.max(A3.camStart, A3.lastFace) > CONFIG.noFaceTimeoutMs) A3.mode = 'avatar';
+  else A3.mode = A3.camOK ? 'scan' : 'wait';
+  if (A3.mode !== prevMode) {
+    if (A3.mode === 'avatar') { showAvatarMsg(A3.avatarReason || (A3.camOK ? 'We looked. Nothing. Not even a nostril.' : 'The camera is shy.')); A3.cur = null; }
+    if (A3.mode === 'live' && prevMode === 'avatar') { camMsg.hidden = true; A3.cur = null; toast('Face found. Ew.'); }
+  }
+  // Background
+  const v = A3.video;
+  if (A3.mode === 'avatar') drawAvatar(ctx, t / 1000);
+  else if (A3.camOK && v.readyState >= 2 && v.videoWidth) {
+    const f = coverFit(v.videoWidth, v.videoHeight);
+    ctx.save(); ctx.translate(CW, 0); ctx.scale(-1, 1); ctx.drawImage(v, f.ox, f.oy, f.dw, f.dh); ctx.restore();
+  } else { ctx.fillStyle = '#222838'; ctx.fillRect(0, 0, CW, CH); }
+  smoothFace(dt);
+  // Phases: scan -> lock (crosshairs) -> drip
+  const elapsed = t - A3.t0;
+  if (A3.phase === 'scan') {
+    if (t - A3.lastScanSwap > 800) { A3.lastScanSwap = t; setScanText(SCAN_TEXTS[A3.scanIdx++ % SCAN_TEXTS.length]); }
+    drawScanner(ctx, t, A3.mode === 'wait' ? 'Waiting for camera permission...' : '');
+    if (elapsed > CONFIG.scanMinMs && (A3.mode === 'live' || A3.mode === 'avatar') && A3.cur) {
+      A3.phase = 'lock'; A3.phaseT = t; setScanText('Nostrils located: 2 (impressive)'); SFX.ding();
+    }
+  } else if (A3.phase === 'lock') {
+    drawLock(ctx, t);
+    if (t - A3.phaseT > CONFIG.lockMs) {
+      A3.phase = 'drip'; A3.dripT0 = t; setScanText('Nostril Filter\u2122 active. Drip rate: rising.');
+      SFX.sniff(); startCaptions(A3.token);
+    }
+  } else if (A3.phase === 'drip') {
+    updateSlime(dt);
+    drawSlime(ctx);
+    S.sanityTarget = Math.max(-404, S.sanityTarget - dt * 1.5);
+  }
+}
+
+/* ---------- 10h. Snap a photo (saved locally via download, never uploaded) ---------- */
+function snapPhoto() {
+  if (!A3.open || A3.step !== 'cam') return;
+  SFX.shutter();
+  const f = $('#flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+  const src = A3.cv, pad = 36, top = 96, bottom = 86;
+  const out = document.createElement('canvas'); out.width = src.width + pad * 2; out.height = src.height + top + bottom;
+  const c = out.getContext('2d');
+  const g = c.createLinearGradient(0, 0, out.width, out.height); g.addColorStop(0, '#ff8fd0'); g.addColorStop(0.5, '#ffe066'); g.addColorStop(1, '#7ee8f2');
+  c.fillStyle = g; c.fillRect(0, 0, out.width, out.height);
+  c.lineWidth = 10; c.strokeStyle = INK; c.strokeRect(5, 5, out.width - 10, out.height - 10);
+  c.fillStyle = '#fff'; c.fillRect(pad - 8, top - 8, src.width + 16, src.height + 16);
+  c.drawImage(src, pad, top);
+  c.lineWidth = 4; c.strokeRect(pad, top, src.width, src.height);
+  c.textAlign = 'center'; c.lineJoin = 'round';
+  c.font = `900 44px ${FUN_FONT}`; c.lineWidth = 8; c.strokeStyle = INK; c.strokeText('Certified Nostril Verified\u2122', out.width / 2, 64);
+  c.fillStyle = '#fff'; c.fillText('Certified Nostril Verified\u2122', out.width / 2, 64);
+  const digits = Board.slots.every(Boolean) ? Board.slots.map(b => b.d).join('-') : 'pending (please hold)';
+  c.font = `800 20px ${FONT}`; c.fillStyle = INK;
+  c.fillText(`Phone number: ${digits}  \u00b7  Sanity: ${Math.round(S.sanityShown)}%  \u00b7  ${new Date().toLocaleDateString()}`, out.width / 2, out.height - 48, out.width - 40);
+  c.font = `700 16px ${FONT}`; c.fillText('Camera stays on your device. We are too lazy to store it.', out.width / 2, out.height - 22, out.width - 40);
+  c.save(); c.translate(out.width - 120, top + src.height - 70); c.rotate(-0.3);
+  c.strokeStyle = 'rgba(214,30,60,.85)'; c.fillStyle = 'rgba(214,30,60,.85)'; c.lineWidth = 5;
+  c.beginPath(); c.arc(0, 0, 70, 0, TAU); c.stroke(); c.beginPath(); c.arc(0, 0, 60, 0, TAU); c.stroke();
+  c.font = `900 18px ${FONT}`; c.fillText('APPROVED', 0, -8); c.fillText('BY 3 DUCKS', 0, 16); c.restore();
+  const finish = url => {
+    const a = document.createElement('a'); a.href = url; a.download = 'nostril-verified.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    const pol = $('#polaroid'); pol.hidden = true; void pol.offsetWidth; pol.src = out.toDataURL('image/jpeg', 0.6); pol.hidden = false;
+    later(() => { pol.hidden = true; }, 3300);
+    toast('Saved. To your device. Not ours.');
+  };
+  try {
+    if (out.toBlob) out.toBlob(b => { if (!b) return finish(out.toDataURL('image/png')); const u = URL.createObjectURL(b); finish(u); setTimeout(() => URL.revokeObjectURL(u), 5000); }, 'image/png');
+    else finish(out.toDataURL('image/png'));
+  } catch (e) { toast('Photo failed. Your nose was too powerful.'); }
+}
+$('#snapBtn').addEventListener('click', snapPhoto);
+
+/* =====================================================================
+   11. MAIN LOOP (delta-time, pauses when tab hidden)
+   ===================================================================== */
+let lastT = now(), rafId = 0;
+function frame(t) {
+  rafId = requestAnimationFrame(frame);
+  const dt = Math.min(0.1, Math.max(0, (t - lastT) / 1000)); lastT = t;
+  if (!dt) return;
+  try {
+    renderSanity(dt);
+    updateBoard(dt); drawBoard();
+    updateFX(dt); drawFX();
+    updateAct3(dt);
+  } catch (e) { console.warn('[please-hold] frame error', e); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cancelAnimationFrame(rafId); rafId = 0;
+    if (AE.ctx && AE.ctx.state === 'running') AE.ctx.suspend().catch(() => {});
+  } else {
+    lastT = now();
+    if (!rafId) rafId = requestAnimationFrame(frame);
+    if (AE.ctx && AE.ctx.state === 'suspended') AE.ctx.resume().catch(() => {});
+  }
+});
+
+/* =====================================================================
+   12. CONTROLS: mute, master volume, keyboard shortcuts, reset
+   ===================================================================== */
+const muteBtn = $('#muteBtn'), masterBtn = $('#masterVolBtn');
+function toggleMute() {
+  AE.muted = !AE.muted; applyMaster();
+  if (AE.muted) stopSpeech();
+  muteBtn.textContent = AE.muted ? 'Unmute' : 'Mute'; muteBtn.classList.toggle('on', AE.muted);
+  toast(AE.muted ? 'Muted. For real. This one works.' : 'Unmuted. The ducks are back.', 1300);
+}
+muteBtn.addEventListener('click', toggleMute);
+const MASTER_LEVELS = [1, 0.6, 0.3];
+masterBtn.addEventListener('click', () => {
+  const i = (MASTER_LEVELS.indexOf(AE.masterLevel) + 1) % MASTER_LEVELS.length;
+  AE.masterLevel = MASTER_LEVELS[i]; applyMaster();
+  masterBtn.textContent = 'Master: ' + Math.round(AE.masterLevel * 100) + '%';
+});
+
+function resetAll() {
+  clearLaters(); stopSpeech();
+  closeAct3();
+  $('#a3Btn').hidden = true; $('#a3Status').textContent = 'Locked'; $('#a3Status').classList.remove('hot');
+  $('#a3Hint').textContent = 'Unlocks automatically after volume setup. Please hold.';
+  clearDigits(false);
+  FX.pile = []; FX.incoming = []; FX.confetti = []; FX.popups = []; FX.ball = null; FX.floorOpen = false; FX.shake = 0; appEl.style.translate = '';
+  returnBtn.hidden = true;
+  VOL.escaped = false; VOL.dragging = false; knob.classList.remove('gone'); sticky.classList.remove('show'); setVolume(50);
+  setSanity(100); S.sanityShown = 100; S.callerNum = 7; S.dodges = 0;
+  setChaos(0, true);
+  document.documentElement.style.cursor = '';
+  toast('Everything is fine now. Please hold.', 1500);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const k = e.key.toLowerCase();
+  if (k === 'r') { resetAll(); }
+  else if (k === 'v') { ensureAudio(); if (!VOL.escaped) { setVolume(100); } }
+  else if (k === 'n') { ensureAudio(); if (!A3.open) openAct3(); else if (A3.step === 'perm') startCamera(); }
+  else if (k === 'm') { toggleMute(); }
+  else if (k === 'escape') { if (A3.open) closeAct3(); }
+  else if (/^[0-9]$/.test(k) && document.activeElement !== knob) { ensureAudio(); pressDigit(+k, keyEls[+k]); }
+});
+
+// Resume/create audio on the first gesture (browsers require it)
+['pointerdown', 'keydown', 'touchstart'].forEach(ev => window.addEventListener(ev, ensureAudio, { capture: true, passive: true }));
+
+/* =====================================================================
+   13. INIT
+   ===================================================================== */
+function init() {
+  setChaos(0, true); setVolume(50); VOL.lastBucket = 5;
+  layoutFX(); layoutBoard();
+  if ('ResizeObserver' in window) new ResizeObserver(() => layoutBoard()).observe(Board.cv);
+  window.addEventListener('resize', () => { layoutFX(); layoutBoard(); });
+  rafId = requestAnimationFrame(frame);
+  // Warm up the face library in the background so Act 3 starts instantly.
+  setTimeout(() => { if (PARAMS.get('face') !== 'off') loadFaceLib(); }, 1500);
+}
+init();
+</script>
+</body>
+</html>
